@@ -46,11 +46,9 @@ void Graphics::update(std::shared_ptr<Physics> phys)
                 case SDL_KEYDOWN:
                     switch(_win_event.key.keysym.sym ){
                     case SDLK_LEFT:
-                        std::cout << "Key press left\n";
                         input.direction = -1;
                         break;
                     case SDLK_RIGHT:
-                        std::cout << "Key press right\n";
                         input.direction = 1;
                         break;
                     case SDLK_ESCAPE:

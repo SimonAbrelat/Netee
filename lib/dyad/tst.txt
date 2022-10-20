@@ -1,0 +1,2 @@
+add_executable(dyad dyad.c dyad.h)
+SET (CMAKE_C_STANDARD 99)
