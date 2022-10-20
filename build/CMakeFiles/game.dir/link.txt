@@ -1,0 +1,1 @@
+/usr/bin/c++ -rdynamic CMakeFiles/game.dir/src/graphics.cpp.o CMakeFiles/game.dir/src/main.cpp.o CMakeFiles/game.dir/src/networking.cpp.o CMakeFiles/game.dir/src/physics.cpp.o -o game  -L/usr/local/lib -Wl,-rpath,/usr/local/lib -Wl,--enable-new-dtags -lSDL2 

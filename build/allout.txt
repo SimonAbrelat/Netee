@@ -1,0 +1,15 @@
+Consolidate compiler generated dependencies of target game
+[ 20%] Building CXX object CMakeFiles/game.dir/src/graphics.cpp.o
+/home/simon/Documents/School/CS4220/Rollback/src/graphics.cpp:37:6: error: no declaration matches ‘void Graphics::update(std::shared_ptr<Physics>)’
+   37 | void Graphics::update(std::shared_ptr<Physics> phys)
+      |      ^~~~~~~~
+In file included from /home/simon/Documents/School/CS4220/Rollback/src/graphics.cpp:1:
+/home/simon/Documents/School/CS4220/Rollback/src/graphics.hpp:15:10: note: candidate is: ‘void Graphics::update(std::unique_ptr<Physics>)’
+   15 |     void update(std::unique_ptr<Physics> phys);
+      |          ^~~~~~
+/home/simon/Documents/School/CS4220/Rollback/src/graphics.hpp:10:7: note: ‘class Graphics’ defined here
+   10 | class Graphics {
+      |       ^~~~~~~~
+make[2]: *** [CMakeFiles/game.dir/build.make:76: CMakeFiles/game.dir/src/graphics.cpp.o] Error 1
+make[1]: *** [CMakeFiles/Makefile2:83: CMakeFiles/game.dir/all] Error 2
+make: *** [Makefile:91: all] Error 2

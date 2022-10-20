@@ -16,8 +16,8 @@ struct Collider {
 
     bool is_colliding(Collider& c) {
         return (x          < c.x + c.width
-             && x + width  > c.x 
-             && y          < c.y + c.height 
+             && x + width  > c.x
+             && y          < c.y + c.height
              && y + height > c.y
         );
     }

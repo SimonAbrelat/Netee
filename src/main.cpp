@@ -1,68 +1,106 @@
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
-#include <boost/asio.hpp>
-#include <boost/bind.hpp>
-#include <boost/enable_shared_from_this.hpp>
+#include <memory>
 
+#include <boost/asio.hpp>
 #include <boost/algorithm/string.hpp>
 
-#include "server.hpp"
+#include <fpm/fixed.hpp>
 
-using namespace boost::asio;
-using ip::tcp;
-using std::cout;
-using std::endl;
+#include "server.hpp"
+#include "graphics.hpp"
+#include "collider.hpp"
+#include "physics.hpp"
+
+using f16 = fpm::fixed_16_16;
+
+std::shared_ptr<Graphics> graphics (new Graphics());
+std::shared_ptr<Physics> physics (new Physics());
+
+using boost::asio::ip::tcp;
+enum { max_length = 1024 };
+
+const char* host = "127.0.0.1";
+const char* port = "8080";
 
 int make_client() {
-    boost::asio::io_service io_service;
-//socket creation
-    tcp::socket socket(io_service);
-//connection
-    socket.connect( tcp::endpoint( boost::asio::ip::address::from_string("127.0.0.1"), 1234 ));
-// request/message from client
-    const string msg = "Hello from Client!\n";
-    boost::system::error_code error;
-    boost::asio::write( socket, boost::asio::buffer(msg), error );
-    if( !error ) {
-       cout << "Client sent hello message!" << endl;
+//
+// blocking_tcp_echo_client.cpp
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//
+// Copyright (c) 2003-2021 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+//
+// Distributed under the Boost Software License, Version 1.0. (See accompanying
+// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+    try {
+      boost::asio::io_context io_context;
+
+      tcp::socket s(io_context);
+      tcp::resolver resolver(io_context);
+      boost::asio::connect(s, resolver.resolve(host, port));
+
+      for(;;) {
+        std::cout << "Enter message: ";
+        char request[max_length];
+        std::cin.getline(request, max_length);
+        size_t request_length = std::strlen(request);
+        boost::asio::write(s, boost::asio::buffer(request, request_length));
+
+        char reply[max_length];
+        size_t reply_length = boost::asio::read(s,
+            boost::asio::buffer(reply, request_length));
+        std::cout << "Reply is: ";
+        std::cout.write(reply, reply_length);
+        std::cout << "\n";
+      }
     }
-    else {
-       cout << "send failed: " << error.message() << endl;
+    catch (std::exception& e) {
+      std::cerr << "Exception: " << e.what() << "\n";
     }
- // getting response from server
-    boost::asio::streambuf receive_buffer;
-    boost::asio::read(socket, receive_buffer, boost::asio::transfer_all(), error);
-    if( error && error != boost::asio::error::eof ) {
-        cout << "receive failed: " << error.message() << endl;
-    }
-    else {
-        const char* data = boost::asio::buffer_cast<const char*>(receive_buffer.data());
-        cout << data << endl;
-    }
-    return 0;
+  return 0;
 }
 
+
+
 int make_server() {
-    try {
-        boost::asio::io_service io_service;  
-        Server server(io_service);
-        io_service.run();
-    }
-    catch(std::exception& e) {
-        std::cerr << e.what() << endl;
-    }
-    return 0;
+  try {
+    boost::asio::io_context io_context;
+
+    server s(io_context, std::atoi(port));
+
+    io_context.run();
+  }
+  catch (std::exception& e) {
+    std::cerr << "Exception: " << e.what() << "\n";
+  }
+
+  return 0;
 }
 
 int main(int argc, char** argv) {
-    if (argc < 2) {
-        return make_client();
-    }
+  /*
+  Collider col1{f16(2),f16(2),f16(3),f16(3)};
+  Collider col2{f16(1),f16(1),f16(2),f16(2)};
 
-    std::string input {argv[1]};
-    boost::algorithm::to_lower(input);
-    if (input.compare("server") == 0) {
-        return make_server();
-    } else {
-        return make_client();
-    }
+  std::cout << "Is colliding: " << col1.is_colliding(col2) << '\n';
+  */
+
+  /*
+  if (argc < 2) {
+      return make_client();
+  }
+
+  std::string input {argv[1]};
+  boost::algorithm::to_lower(input);
+  if (input.compare("server") == 0) {
+      return make_server();
+  } else {
+      return make_client();
+  }
+  */
+  physics->run();
+  graphics->update(physics);
+  physics->abort();
 }
