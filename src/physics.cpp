@@ -33,7 +33,7 @@ void Physics::update_inputs(const InputState& input) {
 
 PlayerState Physics::get(bool player){
     _player_lock.lock();
-    PlayerState ret {_p1_body.x, f16(0)};
+    PlayerState ret {((player) ? _p1_body : _p2_body).x, f16(0)};
     _player_lock.unlock();
     return ret;
 };
@@ -49,7 +49,7 @@ void Physics::update() {
 
         _player_lock.lock();
         _p1_body.x += WALK_SPEED * curr.direction;
-        std::cout << "P1 x: " << (int) _p1_body.x << " is colliding: " << _p1_body.is_colliding(_p2_body) << '\n';
+        //std::cout << "P1 x: " << (int) _p1_body.x << " is colliding: " << _p1_body.is_colliding(_p2_body) << '\n';
         _player_lock.unlock();
 
         std::this_thread::sleep_until(next_cycle);

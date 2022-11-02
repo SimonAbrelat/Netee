@@ -62,8 +62,10 @@ void Graphics::update(std::shared_ptr<Physics> phys) {
             }
         }
 
-        //std::cout << "GRAPHICS DIRECTION: " << input.direction << '\n';
         phys->update_inputs(input);
+        PlayerState p1 = phys->get(true);
+        int x = static_cast<int>(p1.pos);
+        std::cout << "Player 1 position: " << x << '\n';
         draw();
     }
 }
