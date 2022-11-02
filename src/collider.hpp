@@ -14,6 +14,14 @@ struct Collider {
     f16 height;
     f16 width;
 
+    Collider() : x(0), y(0), height(0), width(0) {};
+
+    template<typename T,
+        typename = typename std::enable_if<std::is_arithmetic<T>::value,T>::type>
+    Collider(T x, T y, T h, T w) :
+        x(x), y(y), height(h), width(w)
+    {};
+
     bool is_colliding(Collider& c) {
         return (x          < c.x + c.width
              && x + width  > c.x

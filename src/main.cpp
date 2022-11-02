@@ -30,15 +30,12 @@ int main(int argc, char** argv) {
   */
 
   if (argc < 2) {
-    std::shared_ptr<Client> network (new Client(HOST, PORT));
+    std::shared_ptr<Peer> network (new Client(HOST, PORT));
   } else {
-    std::shared_ptr<Server> network (new Server(PORT));
-  }
-  /*
-  if (argc < 2) {
-      return make_client();
+    std::shared_ptr<Peer> network (new Server(PORT));
   }
 
+  /*
   std::string input {argv[1]};
   boost::algorithm::to_lower(input);
   if (input.compare("server") == 0) {

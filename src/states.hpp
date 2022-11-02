@@ -6,17 +6,20 @@
 
 using f16 = fpm::fixed_16_16;
 
+struct PlayerState {
+    f16 p_x;
+    f16 p_anim;
+};
+
 struct GameState {
     long frame;
-    f16 p1_x;
-    f16 p1_anim;
-    f16 p2_x;
-    f16 p2_anim;
+    PlayerState p1;
+    PlayerState p2;
     bool opponent_input;
 };
 
 struct InputState {
-    char direction;
+    short direction;
     bool attack;
     bool parry;
     bool feint;

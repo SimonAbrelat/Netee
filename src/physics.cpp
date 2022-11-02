@@ -3,6 +3,8 @@
 #include <iostream>
 
 Physics::Physics() {
+    _p1_body = Collider(100,100,10,10);
+    _p2_body = Collider(100,100,10,10);
 };
 
 Physics::~Physics() {
@@ -19,26 +21,38 @@ bool Physics::run() {
 }
 
 bool Physics::abort() {
+    _run_physics = false;
     _physics_thread.join();
 }
 
-void Physics::update_inputs(InputState input) {
+void Physics::update_inputs(const InputState& input) {
     _input_lock.lock();
     _input = input;
     _input_lock.unlock();
 }
 
+PlayerState Physics::get(bool player){
+    _player_lock.lock();
+    PlayerState ret {_p1_body.x, f16(0)};
+    _player_lock.unlock();
+    return ret;
+};
+
 void Physics::update() {
     using std::chrono::operator""ms;
     int count = 0;
-    while (true) {
+    while (_run_physics) {
         const auto next_cycle = std::chrono::steady_clock::now() + 17ms;
         _input_lock.lock();
         InputState curr = _input;
         _input_lock.unlock();
 
-        std::cout << "PHYSICS DIRECTION: " << curr.direction << '\n';
+        _player_lock.lock();
+        _p1_body.x += WALK_SPEED * curr.direction;
+        std::cout << "P1 x: " << (int) _p1_body.x << " is colliding: " << _p1_body.is_colliding(_p2_body) << '\n';
+        _player_lock.unlock();
 
         std::this_thread::sleep_until(next_cycle);
     }
+    std::terminate();
 }

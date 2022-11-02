@@ -1,3 +1,0 @@
-/home/simon/Documents/School/CS4220/Rollback/build/CMakeFiles/game.dir
-/home/simon/Documents/School/CS4220/Rollback/build/CMakeFiles/edit_cache.dir
-/home/simon/Documents/School/CS4220/Rollback/build/CMakeFiles/rebuild_cache.dir

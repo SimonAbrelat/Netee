@@ -3,16 +3,14 @@
 
 #include <iostream>
 
-Graphics::Graphics()
-{
+Graphics::Graphics() {
     _win = SDL_CreateWindow("SDL2 Window",
                                 SDL_WINDOWPOS_CENTERED,
                                 SDL_WINDOWPOS_CENTERED,
                                 680, 480,
                                 0);
 
-    if(!_win)
-    {
+    if(!_win) {
         std::cout << "Failed to create window\n";
         std::cout << "SDL2 Error: " << SDL_GetError() << "\n";
         return;
@@ -20,27 +18,22 @@ Graphics::Graphics()
 
     _win_surf = SDL_GetWindowSurface(_win);
 
-    if(!_win_surf)
-    {
+    if(!_win_surf) {
         std::cout << "Failed to get window's surface\n";
         std::cout << "SDL2 Error: " << SDL_GetError() << "\n";
         return;
     }
 }
 
-Graphics::~Graphics()
-{
+Graphics::~Graphics() {
     SDL_FreeSurface(_win_surf);
     SDL_DestroyWindow(_win);
 }
 
-void Graphics::update(std::shared_ptr<Physics> phys)
-{
+void Graphics::update(std::shared_ptr<Physics> phys) {
     bool keep_window_open = true;
     InputState input {};
-    while(keep_window_open)
-    {
-
+    while(keep_window_open) {
         while(SDL_PollEvent(&_win_event) > 0) {
             switch(_win_event.type ){
                 case SDL_KEYDOWN:
@@ -75,7 +68,6 @@ void Graphics::update(std::shared_ptr<Physics> phys)
     }
 }
 
-void Graphics::draw()
-{
+void Graphics::draw() {
     SDL_UpdateWindowSurface(_win);
 }
