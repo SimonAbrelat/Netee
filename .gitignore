@@ -1,1 +1,4 @@
 build/*
+lib/udt4/win
+lib/udt4/doc
+lib/udt4/**/*.o

@@ -1,7 +1,5 @@
 #include "physics.hpp"
 
-#include <iostream>
-
 Physics::Physics() {
     _p1_body = Collider(100,100,10,10);
     _p2_body = Collider(100,100,10,10);
@@ -11,7 +9,8 @@ Physics::~Physics() {
     _physics_thread.join();
 };
 
-bool Physics::run() {
+bool Physics::run(std::shared_ptr<Peer> net){
+    _networking = net;
     try {
         _physics_thread = std::thread(&Physics::update, this);
     } catch(std::exception e) {
@@ -20,12 +19,13 @@ bool Physics::run() {
     return true;
 }
 
-bool Physics::abort() {
+void Physics::abort() {
     _run_physics = false;
     _physics_thread.join();
 }
 
 void Physics::update_inputs(const InputState& input) {
+    //_networking->sendState(InputState);
     _input_lock.lock();
     _input = input;
     _input_lock.unlock();

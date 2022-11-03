@@ -13,17 +13,19 @@ include_directories(${SDL2_INCLUDE_DIRS})
 
 #add_subdirectory("lib/dyad")
 include_directories("lib")
+include_directories("lib/udt4/src/")
 
 file(GLOB_RECURSE SOURCES_CPP "src/*.cpp")
-file(GLOB_RECURSE SOURCES_C "lib/**/*.c")
+file(GLOB_RECURSE LIB_CPP "lib/udt4/src/*.cpp")
 file(GLOB_RECURSE HEADERS_HPP "src/*.hpp")
-file(GLOB_RECURSE HEADERS_H "lib/**/*.h")
+file(GLOB_RECURSE LIB_H "lib/udt4/src/*.h")
 add_executable(game
   ${SOURCES_CPP}
   ${HEADERS_CPP}
-  ${SOURCES_C}
-  ${HEADERS_C}
+  ${LIB_CPP}
+  ${LIB_H}
 )
 target_link_libraries(game
   ${SDL2_LIBRARIES}
+
 )

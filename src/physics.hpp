@@ -1,6 +1,7 @@
 #ifndef PHYSICS_HPP
 #define PHYSICS_HPP
 
+#include <iostream>
 #include <chrono>
 #include <thread>
 #include <mutex>
@@ -10,8 +11,10 @@
 #include <fpm/fixed.hpp>
 #include <fpm/math.hpp>
 
+#include "networking.hpp"
 #include "collider.hpp"
 #include "states.hpp"
+
 
 using f16 = fpm::fixed_16_16;
 
@@ -22,8 +25,8 @@ public:
     Physics();
     ~Physics();
 
-    bool run();
-    bool abort();
+    bool run(std::shared_ptr<Peer> _net);
+    void abort();
 
     void update_inputs(const InputState& input);
     void update_state();
@@ -43,6 +46,8 @@ private:
 
     std::mutex _input_lock;
     InputState _input {};
+
+    std::shared_ptr<Peer> _networking;
 };
 
 #endif // PHYSICS

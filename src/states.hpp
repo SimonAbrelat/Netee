@@ -26,13 +26,15 @@ struct InputState {
     bool lunge;
 };
 
+const size_t PACKET_SIZE = 9;
+
 struct NetworkState {
     InputState inputs;
     long frame;
     long state_hash;
 
-    static std::array<char, 9> serialize(NetworkState& s){
-        std::array<char, 9> buf;
+    static std::array<char, PACKET_SIZE> serialize(NetworkState& s){
+        std::array<char, PACKET_SIZE> buf;
         buf[0] =  s.state_hash        & 0xFF;
         buf[1] = (s.state_hash >>  8) & 0xFF;
         buf[2] = (s.state_hash >> 16) & 0xFF;
