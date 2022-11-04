@@ -21,44 +21,35 @@ Peer::Peer() {
 
 Peer::~Peer() {
    stop();
-   UDT::close(sock);
    UDT::cleanup();
 }
 
 
-void Peer::recvloop() {
+void Peer::recvloop(UDTSOCKET recver) {
    std::cout << "IN THREAD\n";
    const int size = 100;
    char* data = new char[100];
    while (!_is_terminated) {
       // Blocking call
-      std::cout << "WAITING FOR DATA\n";
-      if (UDT::ERROR == UDT::recv(sock, data, size, 0)) {
+      if (UDT::ERROR == UDT::recv(recver, data, size, 0)) {
          goto EXIT;
       }
 
       // TODO: PROCESS DATA
-      std::cout << data;
+      opponent_lock.lock();
+      opponent_state = NetworkState::deserialize(data);
+      new_opponent_state = true;
+      opponent_lock.unlock();
       memset(data, 0, size);
    }
 
 EXIT:
    delete [] data;
-   UDT::close(sock);
+   UDT::close(recver);
 }
 
 void Peer::stop() {
    _is_terminated = true;
-}
-
-bool Peer::sendState(NetworkState& state) {
-   msg_lock.lock();
-   if (msg_queue.size() == MAX_MSG_BUFFER) {
-   msg_queue.pop();
-   }
-   msg_queue.push(state);
-   msg_lock.unlock();
-   return UDT::ERROR == UDT::send(sock, NetworkState::serialize(state).data(), PACKET_SIZE, 0);
 }
 
 NetworkState Peer::readState() {
@@ -70,12 +61,23 @@ NetworkState Peer::readState() {
 }
 
 bool Peer::newData() {
-   opponent_lock.lock();
-   bool ret = new_opponent_state;
-   opponent_lock.unlock();
-   return ret;
+   return new_opponent_state;
 }
 
+Server::~Server() {
+   UDT::close(sock);
+   UDT::close(recv);
+}
+
+bool Server::sendState(NetworkState state) {
+   msg_lock.lock();
+   if (msg_queue.size() == MAX_MSG_BUFFER) {
+      msg_queue.pop();
+   }
+   msg_queue.push(state);
+   msg_lock.unlock();
+   return UDT::ERROR != UDT::send(recv, NetworkState::serialize(state).data(), PACKET_SIZE, 0);
+}
 
 bool Server::start() {
    addrinfo hints {};
@@ -109,19 +111,33 @@ bool Server::start() {
 
 
    std::cout << "WAITING FOR CONNECT\n";
-   UDTSOCKET recv;
    if (UDT::INVALID_SOCK == (recv = UDT::accept(sock, (sockaddr*)&clientaddr, &clientaddr_len))) {
       std::cout << "accept error\n";
       return false;
    }
 
    try {
-      _recv_thread = std::thread(&Peer::recvloop, this); // Makes a copy
+      _recv_thread = std::thread(&Peer::recvloop, this, UDTSOCKET(recv));
    } catch(std::exception e) {
       return false;
    }
    return true;
 }
+
+Client::~Client() {
+   UDT::close(sock);
+}
+
+bool Client::sendState(NetworkState state) {
+   msg_lock.lock();
+   if (msg_queue.size() == MAX_MSG_BUFFER) {
+      msg_queue.pop();
+   }
+   msg_queue.push(state);
+   msg_lock.unlock();
+   return UDT::ERROR != UDT::send(sock, NetworkState::serialize(state).data(), PACKET_SIZE, 0);
+}
+
 
 bool Client::start() {
    struct addrinfo hints, *local, *peer;
@@ -137,7 +153,7 @@ bool Client::start() {
       return false;
    }
 
-   UDTSOCKET sock = UDT::socket(local->ai_family, local->ai_socktype, local->ai_protocol);
+   sock = UDT::socket(local->ai_family, local->ai_socktype, local->ai_protocol);
 
    #ifdef WIN32
    UDT::setsockopt(sock, 0, UDT_MSS, new int(1052), sizeof(int));
@@ -160,7 +176,7 @@ bool Client::start() {
    freeaddrinfo(peer);
 
    try {
-      _recv_thread = std::thread(&Peer::recvloop, this); // Makes a copy
+      _recv_thread = std::thread(&Peer::recvloop, this, UDTSOCKET(sock));
    } catch(std::exception e) {
       return false;
    }

@@ -25,7 +25,7 @@ void Physics::abort() {
 }
 
 void Physics::update_inputs(const InputState& input) {
-    //_networking->sendState(InputState);
+    bool ret = _networking->sendState(NetworkState{input, frame_counter, 0});
     _input_lock.lock();
     _input = input;
     _input_lock.unlock();
@@ -42,6 +42,7 @@ void Physics::update() {
     using std::chrono::operator""ms;
     int count = 0;
     while (_run_physics) {
+        frame_counter++;
         const auto next_cycle = std::chrono::steady_clock::now() + 17ms;
         _input_lock.lock();
         InputState curr = _input;
@@ -52,6 +53,10 @@ void Physics::update() {
         //std::cout << "P1 x: " << (int) _p1_body.x << " is colliding: " << _p1_body.is_colliding(_p2_body) << '\n';
         _player_lock.unlock();
 
+        if (_networking->newData()) {
+            NetworkState opp = _networking->readState();
+            std::cout << "Opponent movement: " << opp.inputs.direction << '\n';
+        }
         std::this_thread::sleep_until(next_cycle);
     }
     std::terminate();

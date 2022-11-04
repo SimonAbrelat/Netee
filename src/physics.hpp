@@ -2,6 +2,7 @@
 #define PHYSICS_HPP
 
 #include <iostream>
+#include <atomic>
 #include <chrono>
 #include <thread>
 #include <mutex>
@@ -35,6 +36,9 @@ public:
 
 private:
     void update();
+
+
+    std::atomic_long frame_counter = 0;
 
     std::mutex _player_lock;
     Collider _p1_body, _p2_body;

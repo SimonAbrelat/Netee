@@ -17,22 +17,20 @@ public:
   Peer();
   ~Peer();
 
-  virtual bool start() { return true; };
-
+  virtual bool start() { return true; }
+  virtual bool sendState(NetworkState state) { return false; }
 
   void stop();
-  bool sendState(NetworkState& state);
   NetworkState readState();
   bool newData();
 
-  void recvloop();
+  void recvloop(UDTSOCKET recver);
 protected:
 
-  UDTSOCKET sock;
 
   std::mutex opponent_lock;
   NetworkState opponent_state;
-  bool new_opponent_state;
+  std::atomic_bool new_opponent_state = false;
 
   std::mutex msg_lock;
   std::queue<NetworkState> msg_queue;
@@ -47,10 +45,15 @@ public:
     : Peer(), _port(port)
   {};
 
+  ~Server();
+
   bool start();
+  bool sendState(NetworkState state);
 
 private:
   const char* _port;
+  UDTSOCKET recv;
+  UDTSOCKET sock;
 };
 
 class Client : public Peer {
@@ -59,9 +62,15 @@ public:
     : Peer(), _host(addr), _port(port)
   {};
 
+  ~Client();
+
+
   bool start();
+  bool sendState(NetworkState state);
 
 private:
+  UDTSOCKET sock;
+
   const char * _host;
   const char * _port;
 };
