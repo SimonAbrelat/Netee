@@ -25,7 +25,7 @@ void Physics::abort() {
 }
 
 void Physics::update_inputs(const InputState& input) {
-    bool ret = _networking->sendState(NetworkState{input, frame_counter, 0});
+    _networking->sendState(NetworkState{input, frame_counter, 0});
     _input_lock.lock();
     _input = input;
     _input_lock.unlock();
@@ -38,9 +38,17 @@ PlayerState Physics::get(bool player){
     return ret;
 };
 
+void Physics::buffer_push(GameState state) {
+    if (_rollback_buffer.size() == BUFFER) {
+        _rollback_buffer.pop_back();
+    }
+    _rollback_buffer.push_front(state);
+}
+
 void Physics::update() {
     using std::chrono::operator""ms;
     int count = 0;
+    NetworkState opp_input;
     while (_run_physics) {
         frame_counter++;
         const auto next_cycle = std::chrono::steady_clock::now() + 17ms;
@@ -48,15 +56,38 @@ void Physics::update() {
         InputState curr = _input;
         _input_lock.unlock();
 
+
+        bool new_input = _networking->newData();
+        if (new_input) {
+            opp_input = _networking->readState();
+        }
+
         _player_lock.lock();
         _p1_body.x += WALK_SPEED * curr.direction;
-        //std::cout << "P1 x: " << (int) _p1_body.x << " is colliding: " << _p1_body.is_colliding(_p2_body) << '\n';
+        long i = frame_counter - opp_input.frame;
+        if (new_input && i > 0 && i < 10) {
+            for(size_t j = i; j > 0; j--) {
+                if (_rollback_buffer.at(i).opponent_input == false) {
+                    _rollback_buffer.at(i).i2 = opp_input.inputs;
+                }
+                int diff = opp_input.inputs.direction != _rollback_buffer.at(i).i2.direction;
+                _rollback_buffer.at(i).p2.pos += WALK_SPEED * diff;
+            }
+            _rollback_buffer.at(i).opponent_input = true;
+            _p2_body.x = _rollback_buffer.at(0).p2.pos + (WALK_SPEED * opp_input.inputs.direction);
+        } else {
+            _p2_body.x += WALK_SPEED * opp_input.inputs.direction;
+        }
+        std::cout << "P1 : " << (int) _p1_body.x << ", P2 : " << (int) _p2_body.x << '\n';
         _player_lock.unlock();
 
-        if (_networking->newData()) {
-            NetworkState opp = _networking->readState();
-            std::cout << "Opponent movement: " << opp.inputs.direction << '\n';
-        }
+        buffer_push(GameState{
+            frame_counter,
+            PlayerState {_p1_body.x, f16(0)}, curr,
+            PlayerState {_p2_body.x, f16(0)}, opp_input.inputs,
+            new_input
+        });
+
         std::this_thread::sleep_until(next_cycle);
     }
     std::terminate();

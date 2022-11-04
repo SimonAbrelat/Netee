@@ -37,8 +37,11 @@ void Peer::recvloop(UDTSOCKET recver) {
 
       // TODO: PROCESS DATA
       opponent_lock.lock();
-      opponent_state = NetworkState::deserialize(data);
-      new_opponent_state = true;
+      NetworkState new_state = NetworkState::deserialize(data);
+      if (new_state.frame != opponent_state.frame) {
+         opponent_state = new_state;
+         new_opponent_state = true;
+      }
       opponent_lock.unlock();
       memset(data, 0, size);
    }
@@ -46,6 +49,7 @@ void Peer::recvloop(UDTSOCKET recver) {
 EXIT:
    delete [] data;
    UDT::close(recver);
+   std::terminate();
 }
 
 void Peer::stop() {

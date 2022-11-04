@@ -65,7 +65,6 @@ void Graphics::update(std::shared_ptr<Physics> phys) {
         phys->update_inputs(input);
         PlayerState p1 = phys->get(true);
         int x = static_cast<int>(p1.pos);
-        //std::cout << "Player 1 position: " << x << '\n';
         draw();
     }
 }

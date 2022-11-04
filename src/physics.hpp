@@ -6,6 +6,7 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
+#include <deque>
 
 #include <boost/circular_buffer.hpp>
 
@@ -20,6 +21,7 @@
 using f16 = fpm::fixed_16_16;
 
 const f16 WALK_SPEED = f16(0.5);
+const size_t BUFFER = 10;
 
 class Physics {
 public:
@@ -37,14 +39,15 @@ public:
 private:
     void update();
 
+    void buffer_push(GameState state);
+
 
     std::atomic_long frame_counter = 0;
 
     std::mutex _player_lock;
     Collider _p1_body, _p2_body;
 
-    std::mutex _buffer_lock;
-    boost::circular_buffer<GameState> _rollback_buffer;
+    std::deque<GameState> _rollback_buffer {};
     std::thread _physics_thread;
     bool _run_physics = true;
 

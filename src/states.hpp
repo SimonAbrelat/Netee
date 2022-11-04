@@ -11,19 +11,21 @@ struct PlayerState {
     f16 anim;
 };
 
-struct GameState {
-    long frame;
-    PlayerState p1;
-    PlayerState p2;
-    bool opponent_input;
-};
-
 struct InputState {
     short direction;
     bool attack;
     bool parry;
     bool feint;
     bool lunge;
+};
+
+struct GameState {
+    long frame;
+    PlayerState p1;
+    InputState i1;
+    PlayerState p2;
+    InputState i2;
+    bool opponent_input;
 };
 
 const size_t PACKET_SIZE = 9;
