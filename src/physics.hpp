@@ -23,7 +23,7 @@ public:
     ~Physics();
 
     bool run();
-    bool abort();
+    void abort();
 
     void update_inputs(const InputState& input);
     void update_state();

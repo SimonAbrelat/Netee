@@ -111,7 +111,7 @@ protected:
   std::mutex msg_lock;
   std::queue<NetworkState> msg_queue;
 
-  std::atomic_bool _is_terminated = false;
+  std::atomic_bool _is_terminated = {false};
   std::thread _network_thread;
 };
 

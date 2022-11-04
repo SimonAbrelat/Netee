@@ -3,8 +3,8 @@
 #include <iostream>
 
 Physics::Physics() {
-    _p1_body = Collider(100,100,10,10);
-    _p2_body = Collider(100,100,10,10);
+    _p1_body = Collider(100,100,50,50);
+    _p2_body = Collider(530,100,50,50);
 };
 
 Physics::~Physics() {
@@ -20,7 +20,7 @@ bool Physics::run() {
     return true;
 }
 
-bool Physics::abort() {
+void Physics::abort() {
     _run_physics = false;
     _physics_thread.join();
 }

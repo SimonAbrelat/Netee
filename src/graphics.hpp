@@ -13,9 +13,10 @@ public:
     ~Graphics();
 
     void update(std::shared_ptr<Physics> phys);
-    void draw();
+    void draw(std::shared_ptr<Physics> phys);
 private:
     SDL_Window  *_win;
+    SDL_Renderer *_ren;
     SDL_Surface *_win_surf;
     SDL_Event    _win_event;
 };

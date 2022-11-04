@@ -4,6 +4,7 @@ PROJECT(game C CXX)
 # set_property(TARGET tgt PROPERTY CXX_STANDARD 17)
 SET(CXX_STANDARD 20)
 SET(CXX_MAKE_FLAGS "-fpermissive")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
 find_package( Boost REQUIRED system)
 include_directories( ${Boost_INCLUDE_DIRS} )
