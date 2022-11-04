@@ -3,8 +3,7 @@
 
 #include <iostream>
 
-Graphics::Graphics()
-{
+Graphics::Graphics() {
     SDL_Init(SDL_INIT_EVERYTHING);
     _win = SDL_CreateWindow("SDL2 Window",
                             SDL_WINDOWPOS_CENTERED,
@@ -12,8 +11,7 @@ Graphics::Graphics()
                             680, 480,
                             0);
 
-    if (!_win)
-    {
+    if (!_win) {
         std::cout << "Failed to create window\n";
         std::cout << "SDL2 Error: " << SDL_GetError() << "\n";
         return;
@@ -23,30 +21,24 @@ Graphics::Graphics()
 
     _win_surf = SDL_GetWindowSurface(_win);
 
-    if (!_win_surf)
-    {
+    if (!_win_surf) {
         std::cout << "Failed to get window's surface\n";
         std::cout << "SDL2 Error: " << SDL_GetError() << "\n";
         return;
     }
 }
 
-Graphics::~Graphics()
-{
+Graphics::~Graphics() {
     SDL_FreeSurface(_win_surf);
     SDL_DestroyWindow(_win);
 }
 
-void Graphics::update(std::shared_ptr<Physics> phys)
-{
+void Graphics::update(std::shared_ptr<Physics> phys) {
     bool keep_window_open = true;
     InputState input{};
-    while (keep_window_open)
-    {
-        while (SDL_PollEvent(&_win_event) > 0)
-        {
-            switch (_win_event.type)
-            {
+    while (keep_window_open) {
+        while (SDL_PollEvent(&_win_event) > 0) {
+            switch (_win_event.type) {
             case SDL_QUIT:
                 input.direction = 0;
                 keep_window_open = false;
@@ -59,22 +51,18 @@ void Graphics::update(std::shared_ptr<Physics> phys)
 
         // INPUT DIRECTION
         const Uint8 *state = SDL_GetKeyboardState(NULL);
-        if (state[SDL_SCANCODE_LEFT] && state[SDL_SCANCODE_RIGHT])
-        {
+        if (state[SDL_SCANCODE_LEFT] && state[SDL_SCANCODE_RIGHT]) {
             input.direction = 0;
         }
-        else if (state[SDL_SCANCODE_LEFT])
-        {
+        else if (state[SDL_SCANCODE_LEFT]) {
             input.direction = -5;
         }
-        else if (state[SDL_SCANCODE_RIGHT])
-        {
+        else if (state[SDL_SCANCODE_RIGHT]) {
             input.direction = 5;
         }
 
         // CLOSE WINDOW
-        if (state[SDL_SCANCODE_ESCAPE])
-        {
+        if (state[SDL_SCANCODE_ESCAPE]) {
             keep_window_open = false;
         }
 
@@ -86,8 +74,7 @@ void Graphics::update(std::shared_ptr<Physics> phys)
     }
 }
 
-void Graphics::draw(std::shared_ptr<Physics> phys)
-{
+void Graphics::draw(std::shared_ptr<Physics> phys) {
     SDL_RenderClear(_ren);
     PlayerState p1 = phys->get(true);
     PlayerState p2 = phys->get(false);
