@@ -24,7 +24,6 @@ Peer::~Peer() {
    UDT::cleanup();
 }
 
-
 void Peer::recvloop(UDTSOCKET recver) {
    std::cout << "IN THREAD\n";
    const int size = 100;
@@ -35,13 +34,19 @@ void Peer::recvloop(UDTSOCKET recver) {
          goto EXIT;
       }
 
-      // TODO: PROCESS DATA
       opponent_lock.lock();
       NetworkState new_state = NetworkState::deserialize(data);
-      if (new_state.frame != opponent_state.frame) {
-         opponent_state = new_state;
-         new_opponent_state = true;
+      // TODO: Make sure this condition is correct
+      // Cond 1: What about old duplicates? Probably handled in physics
+      // Cond 2: Two new inputs on the same physics frame? I need to make a new input queue
+      for (auto it = opponent_states.cbegin(); it != opponent_states.cend(); ++it) {
+         if (it->frame == new_state.frame) {
+            goto END_LOOP;
+         }
       }
+      opponent_states.push_front(new_state);
+      new_states = true;
+END_LOOP:
       opponent_lock.unlock();
       memset(data, 0, size);
    }
@@ -56,16 +61,17 @@ void Peer::stop() {
    _is_terminated = true;
 }
 
-NetworkState Peer::readState() {
+std::deque<NetworkState> Peer::readStates() {
    opponent_lock.lock();
-   NetworkState ret = opponent_state;
-   new_opponent_state = false;
+   std::deque<NetworkState> ret = opponent_states;
+   new_states = false;
+   opponent_states.clear();
    opponent_lock.unlock();
    return ret;
 }
 
 bool Peer::newData() {
-   return new_opponent_state;
+   return new_states;
 }
 
 Server::~Server() {
@@ -165,7 +171,7 @@ bool Client::start() {
 
    freeaddrinfo(local);
 
-      if (0 != getaddrinfo(_host, _port, &hints, &peer)) {
+   if (0 != getaddrinfo(_host, _port, &hints, &peer)) {
       std::cout << "incorrect server\n";
       return false;
    }

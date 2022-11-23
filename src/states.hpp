@@ -20,7 +20,7 @@ struct InputState {
 };
 
 struct GameState {
-    long frame;
+    uint frame;
     PlayerState p1;
     InputState i1;
     PlayerState p2;
@@ -28,23 +28,24 @@ struct GameState {
     bool opponent_input;
 };
 
-const size_t PACKET_SIZE = 9;
+const size_t PACKET_SIZE = 12;
 
 struct NetworkState {
     InputState inputs;
-    long frame;
-    long state_hash;
+    uint frame;
+    uint state_hash;
 
     static std::array<char, PACKET_SIZE> serialize(NetworkState& s){
         std::array<char, PACKET_SIZE> buf;
-        buf[0] =  s.state_hash        & 0xFF;
-        buf[1] = (s.state_hash >>  8) & 0xFF;
-        buf[2] = (s.state_hash >> 16) & 0xFF;
-        buf[3] = (s.state_hash >> 24) & 0xFF;
-        buf[4] =  s.frame        & 0xFF;
-        buf[5] = (s.frame >>  8) & 0xFF;
-        buf[6] = (s.frame >> 16) & 0xFF;
-        buf[7] = (s.frame >> 24) & 0xFF;
+        buf[0] = (s.state_hash >> 24) & 0xFF;
+        buf[1] = (s.state_hash >> 16) & 0xFF;
+        buf[2] = (s.state_hash >> 8) & 0xFF;
+        buf[3] = s.state_hash & 0xFF;
+        buf[4] = (s.frame >> 24) & 0xFF;
+        buf[5] = (s.frame >> 16) & 0xFF;
+        buf[6] = (s.frame >> 8) & 0xFF;
+        buf[7] = s.frame & 0xFF;
+
         buf[8] = s.inputs.direction;
         buf[9] = 0x00
             | (s.inputs.attack << 3)
@@ -56,8 +57,14 @@ struct NetworkState {
 
     static NetworkState deserialize(char* buf) {
         NetworkState ret {};
-        ret.state_hash = buf[0] | (buf[1] << 8L) | (buf[2] << 16L) | (buf[3] << 24L);
-        ret.frame      = buf[4] | (buf[5] << 8L) | (buf[6] << 16L) | (buf[7] << 24L);
+        ret.state_hash = buf[3] & 0x000000FF
+            | (buf[2] << 8)  & 0x0000FF00
+            | (buf[1] << 16) & 0x00FF0000
+            | (buf[0] << 24) & 0xFF000000;
+        ret.frame = buf[7] & 0x000000FF
+            | (buf[6] << 8)  & 0x0000FF00
+            | (buf[5] << 16) & 0x00FF0000
+            | (buf[4] << 24) & 0xFF000000;
         ret.inputs.direction = buf[8];
         ret.inputs.attack = (buf[9] >> 3) & 0x01;
         ret.inputs.parry  = (buf[9] >> 2) & 0x01;

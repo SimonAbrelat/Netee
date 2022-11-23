@@ -42,7 +42,7 @@ private:
     void buffer_push(GameState state);
 
 
-    std::atomic_long frame_counter = 0;
+    std::atomic_uint frame_counter = 0;
 
     std::mutex _player_lock;
     Collider _p1_body, _p2_body;

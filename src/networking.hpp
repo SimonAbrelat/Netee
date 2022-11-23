@@ -4,6 +4,7 @@
 #include <atomic>
 #include <thread>
 #include <queue>
+#include <deque>
 #include <mutex>
 
 #include <udt.h>
@@ -21,7 +22,7 @@ public:
   virtual bool sendState(NetworkState state) { return false; }
 
   void stop();
-  NetworkState readState();
+  std::deque<NetworkState> readStates();
   bool newData();
 
   void recvloop(UDTSOCKET recver);
@@ -29,8 +30,8 @@ protected:
 
 
   std::mutex opponent_lock;
-  NetworkState opponent_state;
-  std::atomic_bool new_opponent_state = false;
+  std::deque<NetworkState> opponent_states;
+  std::atomic_bool new_states = false;
 
   std::mutex msg_lock;
   std::queue<NetworkState> msg_queue;

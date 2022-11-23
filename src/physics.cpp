@@ -39,7 +39,7 @@ PlayerState Physics::get(bool player){
 };
 
 void Physics::buffer_push(GameState state) {
-    if (_rollback_buffer.size() == BUFFER) {
+    if (_rollback_buffer.size() == BUFFER + 1) {
         _rollback_buffer.pop_back();
     }
     _rollback_buffer.push_front(state);
@@ -48,20 +48,36 @@ void Physics::buffer_push(GameState state) {
 void Physics::update() {
     using std::chrono::operator""ms;
     int count = 0;
-    NetworkState opp_input;
+    std::deque<NetworkState> opp_inputs;
     while (_run_physics) {
+        // Setup physics loop
         frame_counter++;
         const auto next_cycle = std::chrono::steady_clock::now() + 17ms;
+
+        // Get new local inputs
         _input_lock.lock();
         InputState curr = _input;
         _input_lock.unlock();
 
-
+        // Get opponent inputs
         bool new_input = _networking->newData();
+        uint oldest_frame = std::numeric_limits<unsigned int>::max();
+        NetworkState newest_input;
         if (new_input) {
-            opp_input = _networking->readState();
+            opp_inputs = _networking->readStates();
+            newest_input = opp_inputs.front();
+            for (auto it = opp_inputs.cbegin(); it != opp_inputs.cend(); ++it) {
+                if (it->frame < oldest_frame) {
+                    oldest_frame = it->frame;
+                }
+                if (it->frame > newest_input.frame) {
+                    newest_input = *it;
+                }
+            }
+            std::cout << "Oldest frame: " << oldest_frame << '\n';
         }
 
+        /*
         _player_lock.lock();
         _p1_body.x += WALK_SPEED * curr.direction;
         long i = frame_counter - opp_input.frame;
@@ -78,15 +94,63 @@ void Physics::update() {
         } else {
             _p2_body.x += WALK_SPEED * opp_input.inputs.direction;
         }
-        std::cout << "P1 : " << (int) _p1_body.x << ", P2 : " << (int) _p2_body.x << '\n';
+        */
+        _player_lock.lock();
+            // Calculate Rollbacks
+            if (new_input) {
+            uint i = (frame_counter - 1) - oldest_frame; // How deep into the buffer we go
+            if (i > BUFFER) {
+                std::cout << "ERROR: BUFFER NOT LONG ENOUGH\n";
+            }
+            //std::cout << "GO BACK: " << i << " TO FRAME " << oldest_frame << "\n";
+            //std::cout << "ITERATING: ";
+            if (oldest_frame != frame_counter) {
+                // Rollback code
+                for (size_t j = i; j > 0; j--) {
+                    // Update opponent_input and iterate all states from then on
+                    //std::cout << j  << " ";
+                        /*
+                    if (_rollback_buffer.at(j).opponent_input == false) {
+                        std::cout << "UPDATING FRAME: " << _rollback_buffer.at(j).frame << '\n';
+                        // Check all opponent_inputs
+                        for (auto it = opp_inputs.cbegin(); it != opp_inputs.cend(); ++it) {
+                            // Add missing opponent input
+                            if (it->frame == _rollback_buffer.at(j).frame) {
+                                _rollback_buffer.at(j).i2 = it->inputs;
+                                _rollback_buffer.at(j).opponent_input = true;
+                            }
+                        }
+                    }
+                        */
+                    // Update opponent Movement
+
+                        /*
+                    _rollback_buffer.at(j).p2.pos =
+                        ((j+1 >= _rollback_buffer.size()) ? f16(0) : _rollback_buffer.at(j+1).p2.pos)
+                        + (WALK_SPEED * _rollback_buffer.at(j).i2.direction);
+                        */
+                }
+            }
+            //std::cout << " \n";
+        }
+
+        // Update current iteration
+        _p1_body.x += WALK_SPEED * curr.direction;
+        _p2_body.x += WALK_SPEED * newest_input.inputs.direction;
         _player_lock.unlock();
 
         buffer_push(GameState{
             frame_counter,
             PlayerState {_p1_body.x, f16(0)}, curr,
-            PlayerState {_p2_body.x, f16(0)}, opp_input.inputs,
-            new_input
+            PlayerState {_p2_body.x, f16(0)}, newest_input.inputs,
+            newest_input.frame == frame_counter
         });
+
+        std::cout << "Opponent state: ";
+        for (auto it = opp_inputs.cbegin(); it != opp_inputs.cend(); ++it) {
+            std::cout << it->frame << " ";
+        }
+        std::cout << "\n";
 
         std::this_thread::sleep_until(next_cycle);
     }
