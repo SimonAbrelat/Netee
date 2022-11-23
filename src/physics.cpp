@@ -74,7 +74,7 @@ void Physics::update() {
                     newest_input = *it;
                 }
             }
-            std::cout << "Oldest frame: " << oldest_frame << '\n';
+            //std::cout << "Oldest frame: " << oldest_frame << '\n';
         }
 
         /*
@@ -100,7 +100,7 @@ void Physics::update() {
             if (new_input) {
             uint i = (frame_counter - 1) - oldest_frame; // How deep into the buffer we go
             if (i > BUFFER) {
-                std::cout << "ERROR: BUFFER NOT LONG ENOUGH\n";
+                std::cout << "ERROR: BUFFER NOT LONG ENOUGH: " << oldest_frame << "\n";
             }
             //std::cout << "GO BACK: " << i << " TO FRAME " << oldest_frame << "\n";
             //std::cout << "ITERATING: ";
@@ -108,7 +108,6 @@ void Physics::update() {
                 // Rollback code
                 for (size_t j = i; j > 0; j--) {
                     // Update opponent_input and iterate all states from then on
-                    //std::cout << j  << " ";
                         /*
                     if (_rollback_buffer.at(j).opponent_input == false) {
                         std::cout << "UPDATING FRAME: " << _rollback_buffer.at(j).frame << '\n';
@@ -131,7 +130,6 @@ void Physics::update() {
                         */
                 }
             }
-            //std::cout << " \n";
         }
 
         // Update current iteration
@@ -146,11 +144,13 @@ void Physics::update() {
             newest_input.frame == frame_counter
         });
 
+        /*
         std::cout << "Opponent state: ";
         for (auto it = opp_inputs.cbegin(); it != opp_inputs.cend(); ++it) {
             std::cout << it->frame << " ";
         }
         std::cout << "\n";
+        */
 
         std::this_thread::sleep_until(next_cycle);
     }

@@ -30,17 +30,24 @@ void Peer::recvloop(UDTSOCKET recver) {
    char* data = new char[100];
    while (!_is_terminated) {
       // Blocking call
-      if (UDT::ERROR == UDT::recv(recver, data, size, 0)) {
+      int block_size = 0;
+      if (UDT::ERROR == (block_size = UDT::recv(recver, data, size, 0))) {
          goto EXIT;
       }
 
+      if (block_size < PACKET_SIZE) {
+         continue;
+      }
       opponent_lock.lock();
       NetworkState new_state = NetworkState::deserialize(data);
+      if (!new_state.valid) {
+         goto END_LOOP;
+      }
       // TODO: Make sure this condition is correct
       // Cond 1: What about old duplicates? Probably handled in physics
       // Cond 2: Two new inputs on the same physics frame? I need to make a new input queue
       for (auto it = opponent_states.cbegin(); it != opponent_states.cend(); ++it) {
-         if (it->frame == new_state.frame) {
+         if (it->frame == new_state.frame || new_state.frame == 0) {
             goto END_LOOP;
          }
       }
@@ -75,8 +82,9 @@ bool Peer::newData() {
 }
 
 Server::~Server() {
-   UDT::close(sock);
+   UDT::close(serv);
    UDT::close(recv);
+   UDT::close(send);
 }
 
 bool Server::sendState(NetworkState state) {
@@ -86,7 +94,7 @@ bool Server::sendState(NetworkState state) {
    }
    msg_queue.push(state);
    msg_lock.unlock();
-   return UDT::ERROR != UDT::send(recv, NetworkState::serialize(state).data(), PACKET_SIZE, 0);
+   return UDT::ERROR != UDT::send(send, NetworkState::serialize(state).data(), PACKET_SIZE, 0);
 }
 
 bool Server::start() {
@@ -103,15 +111,15 @@ bool Server::start() {
    }
 
    // Set socket
-   sock = UDT::socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+   serv = UDT::socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 
-   if (UDT::ERROR == UDT::bind(sock, res->ai_addr, res->ai_addrlen)) {
+   if (UDT::ERROR == UDT::bind(serv, res->ai_addr, res->ai_addrlen)) {
       std::cout << "bind: " << UDT::getlasterror().getErrorMessage() << '\n';
       return false;
    }
 
    freeaddrinfo(res);
-   if (UDT::ERROR == UDT::listen(sock, 10)) {
+   if (UDT::ERROR == UDT::listen(serv, 10)) {
       std::cout << "listen error\n";
       return false;
    }
@@ -121,8 +129,13 @@ bool Server::start() {
 
 
    std::cout << "WAITING FOR CONNECT\n";
-   if (UDT::INVALID_SOCK == (recv = UDT::accept(sock, (sockaddr*)&clientaddr, &clientaddr_len))) {
-      std::cout << "accept error\n";
+   if (UDT::INVALID_SOCK == (send = UDT::accept(serv, (sockaddr*)&clientaddr, &clientaddr_len))) {
+      std::cout << "RECV socket error\n";
+      return false;
+   }
+
+   if (UDT::INVALID_SOCK == (recv = UDT::accept(serv, (sockaddr*)&clientaddr, &clientaddr_len))) {
+      std::cout << "SEND accept error\n";
       return false;
    }
 
@@ -135,7 +148,8 @@ bool Server::start() {
 }
 
 Client::~Client() {
-   UDT::close(sock);
+   UDT::close(send);
+   UDT::close(recv);
 }
 
 bool Client::sendState(NetworkState state) {
@@ -145,7 +159,7 @@ bool Client::sendState(NetworkState state) {
    }
    msg_queue.push(state);
    msg_lock.unlock();
-   return UDT::ERROR != UDT::send(sock, NetworkState::serialize(state).data(), PACKET_SIZE, 0);
+   return UDT::ERROR != UDT::send(send, NetworkState::serialize(state).data(), PACKET_SIZE, 0);
 }
 
 
@@ -163,10 +177,12 @@ bool Client::start() {
       return false;
    }
 
-   sock = UDT::socket(local->ai_family, local->ai_socktype, local->ai_protocol);
+   recv = UDT::socket(local->ai_family, local->ai_socktype, local->ai_protocol);
+   send = UDT::socket(local->ai_family, local->ai_socktype, local->ai_protocol);
 
    #ifdef WIN32
-   UDT::setsockopt(sock, 0, UDT_MSS, new int(1052), sizeof(int));
+      UDT::setsockopt(recv, 0, UDT_MSS, new int(1052), sizeof(int));
+      UDT::setsockopt(send, 0, UDT_MSS, new int(1052), sizeof(int));
    #endif
 
    freeaddrinfo(local);
@@ -176,8 +192,12 @@ bool Client::start() {
       return false;
    }
 
-   if (UDT::ERROR == UDT::connect(sock, peer->ai_addr, peer->ai_addrlen)) {
-      std::cout << "Connection failed\n";
+   if (UDT::ERROR == UDT::connect(recv, peer->ai_addr, peer->ai_addrlen)) {
+      std::cout << "RECV socket failed\n";
+      return false;
+   }
+   if (UDT::ERROR == UDT::connect(send, peer->ai_addr, peer->ai_addrlen)) {
+      std::cout << "SEND socket failed\n";
       return false;
    }
 
@@ -186,7 +206,7 @@ bool Client::start() {
    freeaddrinfo(peer);
 
    try {
-      _recv_thread = std::thread(&Peer::recvloop, this, UDTSOCKET(sock));
+      _recv_thread = std::thread(&Peer::recvloop, this, UDTSOCKET(recv));
    } catch(std::exception e) {
       return false;
    }

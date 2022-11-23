@@ -1,6 +1,7 @@
 #include "graphics.hpp"
 #include "states.hpp"
 
+#include <chrono>
 #include <iostream>
 
 Graphics::Graphics() {
@@ -31,6 +32,8 @@ Graphics::~Graphics() {
 }
 
 void Graphics::update(std::shared_ptr<Physics> phys) {
+    using std::chrono::operator""ms;
+    const auto next_cycle = std::chrono::steady_clock::now() + 10ms;
     bool keep_window_open = true;
     InputState input {};
     while(keep_window_open) {
@@ -66,6 +69,7 @@ void Graphics::update(std::shared_ptr<Physics> phys) {
         PlayerState p1 = phys->get(true);
         int x = static_cast<int>(p1.pos);
         draw();
+        std::this_thread::sleep_until(next_cycle);
     }
 }
 

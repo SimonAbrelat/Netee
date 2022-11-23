@@ -34,8 +34,10 @@ struct NetworkState {
     InputState inputs;
     uint frame;
     uint state_hash;
+    bool valid = true;
 
     static std::array<char, PACKET_SIZE> serialize(NetworkState& s){
+        int checksum = 0;
         std::array<char, PACKET_SIZE> buf;
         buf[0] = (s.state_hash >> 24) & 0xFF;
         buf[1] = (s.state_hash >> 16) & 0xFF;
@@ -52,10 +54,16 @@ struct NetworkState {
             | (s.inputs.parry << 2)
             | (s.inputs.feint << 1)
             | (s.inputs.lunge);
+
+        for (int i=0; i <= 9; i++) {
+            checksum += (unsigned char) buf[i];
+        }
+        buf[10] = (char) -(checksum % 256);
         return buf;
     }
 
     static NetworkState deserialize(char* buf) {
+        int checksum = 0;
         NetworkState ret {};
         ret.state_hash = buf[3] & 0x000000FF
             | (buf[2] << 8)  & 0x0000FF00
@@ -70,6 +78,11 @@ struct NetworkState {
         ret.inputs.parry  = (buf[9] >> 2) & 0x01;
         ret.inputs.feint  = (buf[9] >> 1) & 0x01;
         ret.inputs.lunge  =  buf[9]       & 0x01;
+
+        for (int i=0; i <= 10; i++) {
+            checksum += (unsigned char) buf[i];
+        }
+        ret.valid = checksum % 256 == 0;
         return ret;
     }
 };
