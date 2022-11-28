@@ -33,7 +33,7 @@ Graphics::~Graphics() {
 
 void Graphics::update(std::shared_ptr<Physics> phys) {
     using std::chrono::operator""ms;
-    const auto next_cycle = std::chrono::steady_clock::now() + 10ms;
+    const auto next_cycle = std::chrono::steady_clock::now() + 5ms;
     bool keep_window_open = true;
     InputState input {};
     while(keep_window_open) {

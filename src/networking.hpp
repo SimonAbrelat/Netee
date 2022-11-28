@@ -7,7 +7,7 @@
 #include <deque>
 #include <mutex>
 
-#include <udt.h>
+#include <enet/enet.h>
 
 #include "states.hpp"
 
@@ -19,16 +19,15 @@ public:
   ~Peer();
 
   virtual bool start() { return true; }
-  virtual bool sendState(NetworkState state) { return false; }
+  virtual void sendState(NetworkState state) {};
 
   void stop();
   std::deque<NetworkState> readStates();
   bool newData();
 
-  void recvloop(UDTSOCKET recver);
+  void networkloop(ENetHost* sock);
+
 protected:
-
-
   std::mutex opponent_lock;
   std::deque<NetworkState> opponent_states;
   std::atomic_bool new_states = false;
@@ -43,40 +42,40 @@ protected:
 
 class Server : public Peer {
 public:
-  Server(const char* port)
+  Server(uint port)
     : Peer(), _port(port)
   {};
 
   ~Server();
 
-  bool start();
-  bool sendState(NetworkState state);
+  bool start() override;
+  void sendState(NetworkState state) override;
 
 private:
-  const char* _port;
-  UDTSOCKET recv;
-  UDTSOCKET send;
-  UDTSOCKET serv;
+  uint _port;
+
+  ENetHost* server;
+  ENetPeer* client;
 };
 
 class Client : public Peer {
 public:
-  Client(const char* addr, const char* port)
+  Client(const char* addr, uint port)
     : Peer(), _host(addr), _port(port)
   {};
 
   ~Client();
 
 
-  bool start();
-  bool sendState(NetworkState state);
+  bool start() override;
+  void sendState(NetworkState state) override;
 
 private:
-  UDTSOCKET recv;
-  UDTSOCKET send;
-
   const char * _host;
-  const char * _port;
+  uint _port;
+
+  ENetHost* client;
+  ENetPeer* server;
 };
 
 #endif // NETWORKING

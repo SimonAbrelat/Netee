@@ -16,56 +16,66 @@
 #include "networking.hpp"
 
 Peer::Peer() {
-   UDT::startup();
+   if (enet_initialize () != 0) {
+      std::cerr << "An error occurred while initializing ENet.\n";
+   }
 }
 
 Peer::~Peer() {
    stop();
-   UDT::cleanup();
+   enet_deinitialize();
 }
 
-void Peer::recvloop(UDTSOCKET recver) {
+void Peer::networkloop(ENetHost* sock) {
    std::cout << "IN THREAD\n";
-   const int size = 100;
-   char* data = new char[100];
-   while (!_is_terminated) {
-      // Blocking call
-      int block_size = 0;
-      if (UDT::ERROR == (block_size = UDT::recv(recver, data, size, 0))) {
-         goto EXIT;
-      }
+   ENetEvent event;
+   NetworkState new_state;
+   int status = 0;
+   while (_is_terminated == false) {
+      while ((status = enet_host_service (sock, &event, 10)) > 0) {
+         switch (event.type) {
+            case ENET_EVENT_TYPE_CONNECT:
+               std::clog << "Connected: " << event.peer->address.host << ", "  << event.peer->address.port << '\n';
+               break;
+            case ENET_EVENT_TYPE_RECEIVE:
+               if (event.packet->dataLength != PACKET_SIZE) {
+                  std::clog << "PACKET TOO LARGE\n";
+                  goto CLEANUP;
+               }
+               new_state = NetworkState::deserialize(reinterpret_cast<char*>(event.packet->data));
+               // Check checksum
+               if (!new_state.valid) {
+                  std::clog << "BROKEN CHECKSUM\n";
+                  goto CLEANUP;
+               }
+               for (auto it = opponent_states.cbegin(); it != opponent_states.cend(); ++it) {
+                  if (it->frame == new_state.frame) {
+                     goto CLEANUP;
+                  }
+               }
+               opponent_states.push_front(new_state);
+               new_states = true;
+               enet_packet_destroy (event.packet);
+               break;
+CLEANUP:
+               enet_packet_destroy (event.packet);
+               break;
 
-      if (block_size < PACKET_SIZE) {
-         continue;
-      }
-      opponent_lock.lock();
-      NetworkState new_state = NetworkState::deserialize(data);
-      if (!new_state.valid) {
-         goto END_LOOP;
-      }
-      // TODO: Make sure this condition is correct
-      // Cond 1: What about old duplicates? Probably handled in physics
-      // Cond 2: Two new inputs on the same physics frame? I need to make a new input queue
-      for (auto it = opponent_states.cbegin(); it != opponent_states.cend(); ++it) {
-         if (it->frame == new_state.frame || new_state.frame == 0) {
-            goto END_LOOP;
+            case ENET_EVENT_TYPE_DISCONNECT:
+               printf ("%s disconnected.\n", event.peer -> data);
+               event.peer -> data = NULL;
+               _is_terminated = true;
+            default:
+               std::cout << "TICK \n";
          }
+         break;
       }
-      opponent_states.push_front(new_state);
-      new_states = true;
-END_LOOP:
-      opponent_lock.unlock();
-      memset(data, 0, size);
    }
-
-EXIT:
-   delete [] data;
-   UDT::close(recver);
-   std::terminate();
 }
 
 void Peer::stop() {
    _is_terminated = true;
+   _recv_thread.join();
 }
 
 std::deque<NetworkState> Peer::readStates() {
@@ -82,65 +92,52 @@ bool Peer::newData() {
 }
 
 Server::~Server() {
-   UDT::close(serv);
-   UDT::close(recv);
-   UDT::close(send);
+   std::clog << "SERV DESTRUCT\n";
+   enet_host_destroy(server);
 }
 
-bool Server::sendState(NetworkState state) {
+void Server::sendState(NetworkState state) {
+   /*
    msg_lock.lock();
    if (msg_queue.size() == MAX_MSG_BUFFER) {
       msg_queue.pop();
    }
    msg_queue.push(state);
    msg_lock.unlock();
-   return UDT::ERROR != UDT::send(send, NetworkState::serialize(state).data(), PACKET_SIZE, 0);
+   */
+   ENetPacket * packet = enet_packet_create (NetworkState::serialize(state).data(), PACKET_SIZE, ENET_PACKET_FLAG_RELIABLE);
+   enet_host_broadcast (server, 1, packet);
 }
 
 bool Server::start() {
-   addrinfo hints {};
-   addrinfo* res;
+   ENetAddress address;
+   address.host = ENET_HOST_ANY;
+   address.port = _port;
 
-   hints.ai_flags = AI_PASSIVE;
-   hints.ai_family = AF_INET;
-   hints.ai_socktype = SOCK_STREAM;
-
-   if (0 != getaddrinfo(NULL, _port, &hints, &res)) {
-      std::cout << "illegal port number or port is busy.\n";
+   server = enet_host_create (&address /* the address to bind the server host to */,
+                              1        /* allow up to 32 clients and/or outgoing connections */,
+                              2        /* allow up to 2 channels to be used, 0 and 1 */,
+                              0        /* assume any amount of incoming bandwidth */,
+                              0        /* assume any amount of outgoing bandwidth */);
+   if (server == NULL) {
+      std::cerr << "An error occurred while trying to create an ENet server host.\n";
       return false;
    }
 
-   // Set socket
-   serv = UDT::socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-
-   if (UDT::ERROR == UDT::bind(serv, res->ai_addr, res->ai_addrlen)) {
-      std::cout << "bind: " << UDT::getlasterror().getErrorMessage() << '\n';
-      return false;
-   }
-
-   freeaddrinfo(res);
-   if (UDT::ERROR == UDT::listen(serv, 10)) {
-      std::cout << "listen error\n";
-      return false;
-   }
-
-   sockaddr_storage clientaddr;
-   int clientaddr_len = sizeof(clientaddr);
-
-
-   std::cout << "WAITING FOR CONNECT\n";
-   if (UDT::INVALID_SOCK == (send = UDT::accept(serv, (sockaddr*)&clientaddr, &clientaddr_len))) {
-      std::cout << "RECV socket error\n";
-      return false;
-   }
-
-   if (UDT::INVALID_SOCK == (recv = UDT::accept(serv, (sockaddr*)&clientaddr, &clientaddr_len))) {
-      std::cout << "SEND accept error\n";
-      return false;
+   bool cont = false;
+   ENetEvent event;
+   while (!cont) {
+      while (enet_host_service (server, &event, 10) > 0) {
+         if (event.type == ENET_EVENT_TYPE_CONNECT) {
+            std::clog << "Connected: " << event.peer->address.host << ", "  << event.peer->address.port << '\n';
+            cont = true;
+            break;
+         }
+      }
    }
 
    try {
-      _recv_thread = std::thread(&Peer::recvloop, this, UDTSOCKET(recv));
+      _recv_thread = std::thread(&Peer::networkloop, this, server);
    } catch(std::exception e) {
       return false;
    }
@@ -148,65 +145,58 @@ bool Server::start() {
 }
 
 Client::~Client() {
-   UDT::close(send);
-   UDT::close(recv);
+   enet_host_destroy(client);
 }
 
-bool Client::sendState(NetworkState state) {
+void Client::sendState(NetworkState state) {
+   /*
    msg_lock.lock();
    if (msg_queue.size() == MAX_MSG_BUFFER) {
       msg_queue.pop();
    }
    msg_queue.push(state);
    msg_lock.unlock();
-   return UDT::ERROR != UDT::send(send, NetworkState::serialize(state).data(), PACKET_SIZE, 0);
+   */
+   ENetPacket * packet = enet_packet_create (NetworkState::serialize(state).data(), PACKET_SIZE, ENET_PACKET_FLAG_RELIABLE);
+   enet_peer_send (server, 0, packet);
 }
 
 
 bool Client::start() {
-   struct addrinfo hints, *local, *peer;
+   client = enet_host_create (NULL /* create a client host */,
+                              1 /* only allow 1 outgoing connection */,
+                              2 /* allow up 2 channels to be used, 0 and 1 */,
+                              0 /* assume any amount of incoming bandwidth */,
+                              0 /* assume any amount of outgoing bandwidth */);
 
-   memset(&hints, 0, sizeof(struct addrinfo));
-
-   hints.ai_flags = AI_PASSIVE;
-   hints.ai_family = AF_INET;
-   hints.ai_socktype = SOCK_STREAM;
-
-   if (0 != getaddrinfo(NULL, _port, &hints, &local)) {
-      std::cout << "incorrect port: " << _port << '\n';
+   if (client == NULL) {
+      std::cerr << "An error occurred while trying to create an ENet client host.\n";
       return false;
    }
 
-   recv = UDT::socket(local->ai_family, local->ai_socktype, local->ai_protocol);
-   send = UDT::socket(local->ai_family, local->ai_socktype, local->ai_protocol);
+   ENetAddress address;
+   ENetEvent event;
 
-   #ifdef WIN32
-      UDT::setsockopt(recv, 0, UDT_MSS, new int(1052), sizeof(int));
-      UDT::setsockopt(send, 0, UDT_MSS, new int(1052), sizeof(int));
-   #endif
-
-   freeaddrinfo(local);
-
-   if (0 != getaddrinfo(_host, _port, &hints, &peer)) {
-      std::cout << "incorrect server\n";
+   enet_address_set_host(&address, _host);
+   address.port = _port;
+   /* Initiate the connection, allocating the two channels 0 and 1. */
+   server = enet_host_connect (client, & address, 2, 0);
+   if (server == NULL) {
+      std::cerr << "No available peers for initiating an ENet connection.\n";
       return false;
    }
 
-   if (UDT::ERROR == UDT::connect(recv, peer->ai_addr, peer->ai_addrlen)) {
-      std::cout << "RECV socket failed\n";
+   if (enet_host_service (client, &event, 5000) > 0 && event.type == ENET_EVENT_TYPE_CONNECT) {
+      std::clog << "Connected: " << event.peer->address.host << ", "  << event.peer->address.port << '\n';
+      server= event.peer;
+   } else {
+      std::cerr << "No connection\n";
+      enet_peer_reset (server);
       return false;
    }
-   if (UDT::ERROR == UDT::connect(send, peer->ai_addr, peer->ai_addrlen)) {
-      std::cout << "SEND socket failed\n";
-      return false;
-   }
-
-   std::cout << "CONNECTION SUCCESS\n";
-
-   freeaddrinfo(peer);
 
    try {
-      _recv_thread = std::thread(&Peer::recvloop, this, UDTSOCKET(recv));
+      _recv_thread = std::thread(&Peer::networkloop, this, client);
    } catch(std::exception e) {
       return false;
    }

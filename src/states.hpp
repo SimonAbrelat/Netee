@@ -6,9 +6,18 @@
 
 using f16 = fpm::fixed_16_16;
 
+enum Animation {
+    NONE,
+    ATTACK,
+    LUNGE,
+    PARRY,
+    FEINT
+};
+
 struct PlayerState {
     f16 pos;
-    f16 anim;
+    uint8_t anim_frame;
+    Animation anim;
 };
 
 struct InputState {
@@ -35,6 +44,17 @@ struct NetworkState {
     uint frame;
     uint state_hash;
     bool valid = true;
+
+    static void print(NetworkState& s){
+        std::cout << "STATE:\n"
+            << "\tInput: " << s.inputs.direction << " "
+                           << s.inputs.attack << " "
+                           << s.inputs.parry << " "
+                           << s.inputs.feint << " "
+                           << s.inputs.lunge << "\n"
+            << "\tFrame: " << s.frame << "\n"
+            << "\tValid: " << s.valid << "\n";
+    }
 
     static std::array<char, PACKET_SIZE> serialize(NetworkState& s){
         int checksum = 0;
@@ -82,7 +102,7 @@ struct NetworkState {
         for (int i=0; i <= 10; i++) {
             checksum += (unsigned char) buf[i];
         }
-        ret.valid = checksum % 256 == 0;
+        ret.valid = (checksum % 256 == 0) && (checksum != 0);
         return ret;
     }
 };

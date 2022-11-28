@@ -16,7 +16,8 @@
 using f16 = fpm::fixed_16_16;
 
 const char* HOST = "127.0.0.1";
-const char* PORT = "8080";
+const uint PORT = 8080;
+
 
 std::shared_ptr<Graphics> graphics (new Graphics());
 std::shared_ptr<Physics> physics (new Physics());
