@@ -6,6 +6,13 @@ Physics::Physics() {
     _p2_body = Collider(530,100,50,50);
     _p1_rapier = Collider(100,100,10,100);
     _p2_rapier = Collider(480,100,10,100);
+
+    buffer_push(GameState{
+        0,
+        PlayerState {_p1_body.x, _p1_rapier.x, 0, Animation::NONE}, InputState{},
+        PlayerState {_p2_body.x, _p2_rapier.x, 0, Animation::NONE}, InputState{},
+        true
+    });
 };
 
 Physics::~Physics() {
@@ -50,33 +57,31 @@ void Physics::buffer_push(GameState state) {
     _rollback_buffer.push_front(state);
 }
 
-void Physics::process_input(PlayerState& next, const PlayerState& base, const InputState& input) {
-    /*
+void Physics::process_input(PlayerState& next, const PlayerState& base, const InputState& input, bool mirror) {
     switch (base.anim) {
-        PROCESS_ANIM(next, base, ATTACK)
-        PROCESS_ANIM(next, base, LUNGE)
-        PROCESS_ANIM(next, base, PARRY)
-        PROCESS_ANIM(next, base, FEINT)
+        PROCESS_ANIM(next, base, mirror, ATTACK)
+        PROCESS_ANIM(next, base, mirror, LUNGE)
+        PROCESS_ANIM(next, base, mirror, PARRY)
+        PROCESS_ANIM(next, base, mirror, FEINT)
         case Animation::NONE:
             if (input.attack) {
                next.anim = Animation::ATTACK;
-               ITER_ANIM(next, base, 0, ATTACK);
+               ITER_ANIM(next, base, 0, ATTACK, mirror);
             } else if(input.lunge) {
                next.anim = Animation::ATTACK;
-               ITER_ANIM(next, base, 0, ATTACK);
+               ITER_ANIM(next, base, 0, ATTACK, mirror);
             } else if(input.parry) {
                next.anim = Animation::ATTACK;
-               ITER_ANIM(next, base, 0, ATTACK);
+               ITER_ANIM(next, base, 0, ATTACK, mirror);
             } else if(input.feint) {
                next.anim = Animation::ATTACK;
-               ITER_ANIM(next, base, 0, ATTACK);
+               ITER_ANIM(next, base, 0, ATTACK, mirror);
             } else {
-               next.pos = base.pos + (WALK_SPEED * in.direction);
-               next.sword = base.sword + (WALK_SPEED * in.direction);
+                next.pos = base.pos + ((mirror ? -1 : 1) * (WALK_SPEED * input.direction));
+                next.sword = base.sword + ((mirror ? -1 : 1) *(WALK_SPEED * input.direction));
             }
             break;
     }
-    */
 }
 
 void Physics::update() {
@@ -134,26 +139,18 @@ void Physics::update() {
                             }
                         }
                         auto base = rol - 1; // The frame before the current frame
-                        //process_input(rol->p2, base->p2, rol->i2);
+                        process_input(rol->p2, base->p2, rol->i2, true);
                     }
                 }
             }
         }
 
-        // Update current iteration
-        _p1_body.x += WALK_SPEED * curr.direction;
-        _p2_body.x += WALK_SPEED * newest_input.inputs.direction;
+        PlayerState player1 = _rollback_buffer.front().p1;
+        PlayerState player2 = _rollback_buffer.front().p2;
+        process_input(player1, _rollback_buffer.front().p1, curr, false);
+        process_input(player2, _rollback_buffer.front().p2, newest_input.inputs, true);
 
-        // attack
-        /*
-        if (curr.attack && attack_count == ATTACK_COUNT) attack_count = 0;
-        if (attack_count < ATTACK_COUNT) {
-            _p1_rapier.x += attack[attack_count].rapier_direction;
-            attack_count++;
-        }
-        */
-
-        std::clog << "P1: "  << (int)_p1_body.x << ", P2: " << (int)_p2_body.x << '\n';
+        std::clog << "P1: "  << (int)player1.pos << ", P2: " << (int)player2.pos << '\n';
 
         std::cout << "Rollback state: ";
         for (auto it = _rollback_buffer.cbegin(); it != _rollback_buffer.cend(); ++it) {
@@ -163,8 +160,8 @@ void Physics::update() {
 
         buffer_push(GameState{
             frame_counter,
-            PlayerState {_p1_body.x, _p1_rapier.x, 0, Animation::NONE}, curr,
-            PlayerState {_p2_body.x, _p2_rapier.x, 0, Animation::NONE}, newest_input.inputs,
+            player1, curr,
+            player2, newest_input.inputs,
             newest_input.frame == frame_counter
         });
 
