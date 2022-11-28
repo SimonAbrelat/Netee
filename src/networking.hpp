@@ -37,7 +37,6 @@ protected:
 
   std::atomic_bool _is_terminated = false;
   std::thread _recv_thread;
-
 };
 
 class Server : public Peer {

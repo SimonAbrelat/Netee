@@ -11,11 +11,12 @@ enum Animation {
     ATTACK,
     LUNGE,
     PARRY,
-    FEINT
+    FEINT,
 };
 
 struct PlayerState {
     f16 pos;
+    f16 sword;
     uint8_t anim_frame;
     Animation anim;
 };
@@ -23,9 +24,9 @@ struct PlayerState {
 struct InputState {
     short direction;
     bool attack;
+    bool lunge;
     bool parry;
     bool feint;
-    bool lunge;
 };
 
 struct GameState {
