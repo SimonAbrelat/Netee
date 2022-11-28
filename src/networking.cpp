@@ -55,8 +55,6 @@ void Peer::networkloop(ENetHost* sock) {
                }
                opponent_states.push_front(new_state);
                new_states = true;
-               enet_packet_destroy (event.packet);
-               break;
 CLEANUP:
                enet_packet_destroy (event.packet);
                break;
@@ -65,8 +63,6 @@ CLEANUP:
                printf ("%s disconnected.\n", event.peer -> data);
                event.peer -> data = NULL;
                _is_terminated = true;
-            default:
-               std::cout << "TICK \n";
          }
          break;
       }
@@ -92,19 +88,10 @@ bool Peer::newData() {
 }
 
 Server::~Server() {
-   std::clog << "SERV DESTRUCT\n";
    enet_host_destroy(server);
 }
 
 void Server::sendState(NetworkState state) {
-   /*
-   msg_lock.lock();
-   if (msg_queue.size() == MAX_MSG_BUFFER) {
-      msg_queue.pop();
-   }
-   msg_queue.push(state);
-   msg_lock.unlock();
-   */
    ENetPacket * packet = enet_packet_create (NetworkState::serialize(state).data(), PACKET_SIZE, ENET_PACKET_FLAG_RELIABLE);
    enet_host_broadcast (server, 1, packet);
 }
@@ -149,14 +136,6 @@ Client::~Client() {
 }
 
 void Client::sendState(NetworkState state) {
-   /*
-   msg_lock.lock();
-   if (msg_queue.size() == MAX_MSG_BUFFER) {
-      msg_queue.pop();
-   }
-   msg_queue.push(state);
-   msg_lock.unlock();
-   */
    ENetPacket * packet = enet_packet_create (NetworkState::serialize(state).data(), PACKET_SIZE, ENET_PACKET_FLAG_RELIABLE);
    enet_peer_send (server, 0, packet);
 }

@@ -32,9 +32,6 @@ protected:
   std::deque<NetworkState> opponent_states;
   std::atomic_bool new_states = false;
 
-  std::mutex msg_lock;
-  std::queue<NetworkState> msg_queue;
-
   std::atomic_bool _is_terminated = false;
   std::thread _recv_thread;
 };

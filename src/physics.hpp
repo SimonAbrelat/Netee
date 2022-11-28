@@ -17,21 +17,6 @@
 #include "collider.hpp"
 #include "states.hpp"
 
-#define ITER_ANIM(next, base, frame, TYPE, mirror) \
-        (next).anim_frame = (frame);                                                                    \
-        (next).pos = (base).pos + (((mirror) ? -1 : 1) * TYPE##_ANIMATION[(frame)].input_direction);    \
-        (next).sword = (base).sword + (((mirror) ? -1 : 1) * TYPE##_ANIMATION[(frame)].sword_direction);
-
-#define PROCESS_ANIM(next, base, mirror, TYPE) \
-    case Animation::TYPE:                                            \
-        if ((base).anim_frame < TYPE##_COUNT) {                      \
-            ITER_ANIM(next, base, (base).anim_frame+1, TYPE, mirror) \
-        } else {                                                     \
-            (next).anim_frame = 0;                                   \
-            (next).anim = Animation::NONE;                           \
-        }                                                            \
-        break;
-
 using f16 = fpm::fixed_16_16;
 
 const f16 WALK_SPEED = f16(0.75);
