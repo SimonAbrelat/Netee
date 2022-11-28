@@ -8,7 +8,7 @@ using f16 = fpm::fixed_16_16;
 
 struct PlayerState {
     f16 pos;
-    f16 anim;
+    f16 r_pos;
 };
 
 struct GameState {

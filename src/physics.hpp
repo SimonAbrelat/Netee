@@ -15,7 +15,7 @@
 
 using f16 = fpm::fixed_16_16;
 
-const f16 WALK_SPEED = f16(0.5);
+const f16 WALK_SPEED = f16(0.75);
 
 class Physics {
 public:
@@ -35,6 +35,7 @@ private:
 
     std::mutex _player_lock;
     Collider _p1_body, _p2_body;
+    Collider _p1_rapier, _p2_rapier;
 
     std::mutex _buffer_lock;
     boost::circular_buffer<GameState> _rollback_buffer;

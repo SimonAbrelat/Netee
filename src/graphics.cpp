@@ -61,6 +61,12 @@ void Graphics::update(std::shared_ptr<Physics> phys) {
             input.direction = 5;
         }
 
+        if (state[SDL_SCANCODE_Q]) {
+            input.attack = true;
+        } else {
+            input.attack = false;
+        }
+
         // CLOSE WINDOW
         if (state[SDL_SCANCODE_ESCAPE]) {
             keep_window_open = false;
@@ -80,22 +86,41 @@ void Graphics::draw(std::shared_ptr<Physics> phys) {
     PlayerState p2 = phys->get(false);
     SDL_Rect p1_rect;
     SDL_Rect p2_rect;
+    SDL_Rect p1_rapier_rect;
+    SDL_Rect p2_rapier_rect;
 
     p1_rect.x = static_cast<int>(p1.pos);
     p1_rect.y = 100;
     p1_rect.w = 50;
     p1_rect.h = 50;
 
+    p1_rapier_rect.x = static_cast<int>(p1.r_pos);
+    p1_rapier_rect.y = 100;
+    p1_rapier_rect.w = 100;
+    p1_rapier_rect.h = 10;
+
     p2_rect.x = static_cast<int>(p2.pos);
     p2_rect.y = 100;
     p2_rect.w = 50;
     p2_rect.h = 50;
 
+    p2_rapier_rect.x = static_cast<int>(p2.r_pos);
+    p2_rapier_rect.y = 100;
+    p2_rapier_rect.w = 100;
+    p2_rapier_rect.h = 10;
+
+    SDL_SetRenderDrawColor(_ren, 255, 4, 45, 255);
+    SDL_RenderFillRect(_ren, &p1_rapier_rect);
+
     SDL_SetRenderDrawColor(_ren, 210, 4, 45, 255);
     SDL_RenderFillRect(_ren, &p1_rect);
 
+    SDL_SetRenderDrawColor(_ren, 255, 0, 255, 200);
+    SDL_RenderFillRect(_ren, &p2_rapier_rect);
+
     SDL_SetRenderDrawColor(_ren, 0, 0, 255, 200);
     SDL_RenderFillRect(_ren, &p2_rect);
+
 
     SDL_SetRenderDrawColor(_ren, 181, 126, 220, 255);
 
