@@ -34,12 +34,14 @@ public:
     void update_state();
 
     PlayerState get(bool player);
+    CollisionState getWin();
 
 private:
     void update();
 
     void buffer_push(GameState state);
     void process_input(PlayerState& next, const PlayerState& base, const InputState& input, bool mirror = false);
+    CollisionState process_collisions(PlayerState& p1, PlayerState& p2);
 
     std::atomic_uint frame_counter = 0;
 
@@ -49,10 +51,13 @@ private:
 
     std::deque<GameState> _rollback_buffer;
     std::thread _physics_thread;
-    bool _run_physics = true;
+    std::atomic_bool _run_physics = true;
 
     std::mutex _input_lock;
     InputState _input {};
+
+    std::mutex _game_lock;
+    CollisionState _win = CollisionState::NONE;
 
     std::shared_ptr<Peer> _networking;
 };

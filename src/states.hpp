@@ -6,7 +6,13 @@
 
 using f16 = fpm::fixed_16_16;
 
-enum Animation {
+enum struct CollisionState {
+    NONE,
+    WIN,
+    LOSS,
+};
+
+enum struct Animation {
     NONE,
     ATTACK,
     LUNGE,
@@ -35,6 +41,7 @@ struct GameState {
     InputState i1;
     PlayerState p2;
     InputState i2;
+    CollisionState col;
     bool opponent_input;
 };
 
