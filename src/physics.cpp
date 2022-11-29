@@ -69,7 +69,7 @@ void Physics::buffer_push(GameState state) {
 // This must be a macro since the variables referenced change based on TYPE
 #define PROCESS_ANIM(next, base, mirror, TYPE) \
     case Animation::TYPE:                                            \
-        if ((base).anim_frame <= TYPE##_COUNT) {                      \
+        if ((base).anim_frame < TYPE##_COUNT-1) {                      \
             ITER_ANIM(next, base, (base).anim_frame+1, TYPE, mirror) \
         } else {                                                     \
             (next).anim_frame = 0;                                   \
