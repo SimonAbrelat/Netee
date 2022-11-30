@@ -64,17 +64,8 @@ void Graphics::update(std::shared_ptr<Physics> phys) {
             input.direction = 5;
         }
 
-        if (state[SDL_SCANCODE_Q]) {
-            input.attack = true;
-        } else {
-            input.attack = false;
-        }
-
-        if (state[SDL_SCANCODE_W]) {
-            input.lunge = true;
-        } else {
-            input.lunge = false;
-        }
+        input.attack = state[SDL_SCANCODE_Q];
+        input.lunge = state[SDL_SCANCODE_W];
 
         // CLOSE WINDOW
         if (state[SDL_SCANCODE_ESCAPE]) {

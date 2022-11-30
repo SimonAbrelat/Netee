@@ -3,15 +3,19 @@
 
 #include <atomic>
 #include <thread>
-#include <queue>
 #include <deque>
 #include <mutex>
+
+#ifdef DEBUG
+#include <chrono>
+#include <cstdlib>
+#endif
 
 #include <enet/enet.h>
 
 #include "states.hpp"
 
-const int MAX_MSG_BUFFER = 120; // 2 seconds
+const int MAX_MSG_BUFFER = 30; // 2 seconds
 
 class Peer {
 public:
@@ -26,6 +30,10 @@ public:
   bool newData();
 
   void networkloop(ENetHost* sock);
+#ifdef DEBUG
+  void debugloop(ENetHost* sock);
+#endif
+
 
 protected:
   std::mutex opponent_lock;
@@ -34,6 +42,20 @@ protected:
 
   std::atomic_bool _is_terminated = { false };
   std::thread _recv_thread;
+
+#ifdef DEBUG
+  std::thread _debug_thread;
+  std::atomic_bool _is_debug = { true };
+
+  struct DebugMsg {
+    NetworkState msg;
+    int time;
+  };
+
+  std::mutex msg_lock;
+  std::deque<DebugMsg> msg_queue;
+
+#endif
 };
 
 class Server : public Peer {

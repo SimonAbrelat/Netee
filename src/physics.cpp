@@ -190,7 +190,8 @@ void Physics::update() {
     while (_run_physics) {
         // Setup physics loop
         frame_counter++;
-        const auto next_cycle = std::chrono::steady_clock::now() + 16ms;
+        const auto next_cycle = std::chrono::steady_clock::now() + 16ms; // 60 fps
+        //const auto next_cycle = std::chrono::steady_clock::now() + 32ms; // 30 fps
 
         // Get new local inputs
         _input_lock.lock();
@@ -205,7 +206,9 @@ void Physics::update() {
             opp_inputs = _networking->readStates();
             newest_input = opp_inputs.front();
             // Iterates through everything in the buffer returned from the network
+            std::clog << "Processing inputs: ";
             for (auto it = opp_inputs.cbegin(); it != opp_inputs.cend(); ++it) {
+                std::clog << it->frame << " ";
                 if (it->frame < oldest_frame && oldest_frame != 0) {
                     oldest_frame = it->frame;
                 }
@@ -213,8 +216,8 @@ void Physics::update() {
                     newest_input = *it;
                 }
             }
+            std::clog << '\n';
         }
-
         _player_lock.lock();
         // Calculate Rollbacks
         if (new_input) {
@@ -260,11 +263,20 @@ void Physics::update() {
         CollisionState collision = process_collisions(player1, player2);
 
         // Logs the state of the physics and rollback buffer
-        std::clog << "P1: "  << (int)player1.pos << ", P2: " << (int)player2.pos << '\n';
-        std::clog << "Rollback state: ";
+        //std::clog << "P1: "  << (int)player1.pos << ", P2: " << (int)player2.pos << '\n';
+        std::clog << "Frame " << frame_counter << " Rollback state: ";
         for (auto it = _rollback_buffer.cbegin(); it != _rollback_buffer.cend(); ++it) {
             std::clog << it->opponent_input << " ";
         }
+        /*
+        std::clog << "\n";
+        std::clog << "Frame " << frame_counter << " missing: ";
+        for (auto it = _rollback_buffer.cbegin(); it != _rollback_buffer.cend(); ++it) {
+            if (!it->opponent_input) {
+                std::clog << it->frame << " ";
+            }
+        }
+        */
         std::clog << "\n";
 
         // Push the current state into the rollback buffer
