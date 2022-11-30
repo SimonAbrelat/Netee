@@ -43,7 +43,7 @@ private:
     void process_input(PlayerState& next, const PlayerState& base, const InputState& input, bool mirror = false);
     CollisionState process_collisions(PlayerState& p1, PlayerState& p2);
 
-    std::atomic_uint frame_counter = 0;
+    std::atomic_uint frame_counter = { 0 } ;
 
     std::mutex _player_lock;
     Collider _p1_body, _p2_body;

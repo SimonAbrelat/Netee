@@ -76,14 +76,13 @@ void Physics::buffer_push(GameState state) {
 // Manages the lifetime of animations and resets their state when complete
 // This must be a macro since the variables referenced change based on TYPE
 #define PROCESS_ANIM(next, base, mirror, TYPE) \
-    case Animation::TYPE:                                             \
-        if ((base).anim_frame < TYPE##_COUNT-1) {                    \
-            ITER_ANIM(next, base, (base).anim_frame+1, TYPE, mirror); \
-        } else {                                                      \
-            (next).anim_frame = 0;                                    \
-            (next).anim = Animation::NONE;                            \
-            (next).pos = (base.pos);                                  \
-        }                                                             \
+    case Animation::TYPE:                                            \
+        if ((base).anim_frame < TYPE##_COUNT-1) {                      \
+            ITER_ANIM(next, base, (base).anim_frame+1, TYPE, mirror) \
+        } else {                                                     \
+            (next).anim_frame = 0;                                   \
+            (next).anim = Animation::NONE;                           \
+        }                                                            \
         break;
 
 // Updates the Player state based on their current input and their prior state.

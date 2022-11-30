@@ -60,7 +60,7 @@ CLEANUP:
                break;
 
             case ENET_EVENT_TYPE_DISCONNECT:
-               printf ("%s disconnected.\n", event.peer -> data);
+               printf ("%s disconnected.\n", ((char*)(event.peer -> data)));
                event.peer -> data = NULL;
                _is_terminated = true;
          }
