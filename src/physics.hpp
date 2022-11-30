@@ -41,7 +41,7 @@ private:
     void buffer_push(GameState state);
     void process_input(PlayerState& next, const PlayerState& base, const InputState& input, bool mirror = false);
 
-    std::atomic_uint frame_counter = 0;
+    std::atomic_uint frame_counter = { 0 } ;
 
     std::mutex _player_lock;
     Collider _p1_body, _p2_body;

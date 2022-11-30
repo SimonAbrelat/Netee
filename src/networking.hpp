@@ -30,9 +30,9 @@ public:
 protected:
   std::mutex opponent_lock;
   std::deque<NetworkState> opponent_states;
-  std::atomic_bool new_states = false;
+  std::atomic_bool new_states = { false };
 
-  std::atomic_bool _is_terminated = false;
+  std::atomic_bool _is_terminated = { false };
   std::thread _recv_thread;
 };
 
