@@ -4,10 +4,13 @@
 #include <fpm/fixed.hpp>
 #include <fpm/math.hpp>
 
+#include <string>
 // USED FOR DEBUGGING
-#define DEBUG 1
+//#define DEBUG 1
 
 using f16 = fpm::fixed_16_16;
+
+const std::string SYNC = "SYNC";
 
 enum struct CollisionState {
     NONE,

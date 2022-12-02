@@ -20,7 +20,7 @@
 using f16 = fpm::fixed_16_16;
 
 const f16 WALK_SPEED = f16(0.75);
-const size_t BUFFER = 10;
+const size_t BUFFER = 30;
 
 class Physics {
 public:

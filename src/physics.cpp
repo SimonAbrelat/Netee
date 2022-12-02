@@ -7,12 +7,14 @@ Physics::Physics() {
     _p1_rapier = Collider(100,100,10,100);
     _p2_rapier = Collider(480,100,10,100);
 
-    buffer_push(GameState{
-        0,
-        PlayerState {_p1_body.x, _p1_rapier.x, 0, Animation::NONE}, InputState{},
-        PlayerState {_p2_body.x, _p2_rapier.x, 0, Animation::NONE}, InputState{},
-        CollisionState::NONE, true
-    });
+    for (int i = 0; i < BUFFER; i++) {
+        buffer_push(GameState{
+            0,
+            PlayerState {_p1_body.x, _p1_rapier.x, 0, Animation::NONE}, InputState{},
+            PlayerState {_p2_body.x, _p2_rapier.x, 0, Animation::NONE}, InputState{},
+            CollisionState::NONE, true
+        });
+    }
 };
 
 Physics::~Physics() {
@@ -44,7 +46,7 @@ void Physics::update_inputs(const InputState& input) {
 PlayerState Physics::get(bool player){
     _player_lock.lock();
     // Most recent completed frame
-    GameState current = _rollback_buffer.front();
+    GameState current = _rollback_buffer.at(2);
     // Get the player, information
     PlayerState ret {(player) ? current.p1 : current.p2};
     _player_lock.unlock();
@@ -186,12 +188,21 @@ void Physics::update() {
 
     // Check if two active hitboxes are touching
     bool clank = false;
+    auto prev_cycle =  std::chrono::steady_clock::now();
 
     while (_run_physics) {
         // Setup physics loop
         frame_counter++;
-        const auto next_cycle = std::chrono::steady_clock::now() + 16ms; // 60 fps
-        //const auto next_cycle = std::chrono::steady_clock::now() + 32ms; // 30 fps
+        //auto next_cycle = std::chrono::steady_clock::now() + 16ms; // 60 fps
+        //auto next_cycle = std::chrono::steady_clock::now() + 32ms; // 30 fps
+        auto next_cycle = std::chrono::steady_clock::now() + 100ms; // 10 fps
+        if (_networking->needSync()) {
+            next_cycle += 100ms;
+        }
+        std::clog <<
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - prev_cycle).count()
+            << "\n";
+        prev_cycle = std::chrono::steady_clock::now();
 
         // Get new local inputs
         _input_lock.lock();
@@ -209,7 +220,7 @@ void Physics::update() {
             std::clog << "Processing inputs: ";
             for (auto it = opp_inputs.cbegin(); it != opp_inputs.cend(); ++it) {
                 std::clog << it->frame << " ";
-                if (it->frame < oldest_frame && oldest_frame != 0) {
+                if (it->frame < oldest_frame && oldest_frame > 0) {
                     oldest_frame = it->frame;
                 }
                 if (it->frame > newest_input.frame) {
@@ -225,7 +236,7 @@ void Physics::update() {
             uint i = frame_counter - oldest_frame;
             if (i >= _rollback_buffer.size()) {
                 std::cout << "ERROR: BUFFER NOT LONG ENOUGH: " << oldest_frame << "\n";
-                break;
+                _networking->sendSync();
             } else {
                 if (oldest_frame != frame_counter) {
                     // Rollback code

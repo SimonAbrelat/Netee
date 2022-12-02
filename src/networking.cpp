@@ -59,6 +59,9 @@ void Peer::networkloop(ENetHost* sock) {
                std::clog << "Connected: " << event.peer->address.host << ", "  << event.peer->address.port << '\n';
                break;
             case ENET_EVENT_TYPE_RECEIVE:
+               if (event.packet->dataLength == SYNC.size()) {
+                  need_sync = true;
+               }
                if (event.packet->dataLength != PACKET_SIZE) {
                   std::clog << "PACKET TOO LARGE\n";
                   goto CLEANUP;
@@ -112,6 +115,12 @@ bool Peer::newData() {
    return new_states;
 }
 
+bool Peer::needSync() {
+   bool ret = need_sync;
+   need_sync = false;
+   return need_sync;
+}
+
 Server::~Server() {
    enet_host_destroy(server);
 }
@@ -129,6 +138,11 @@ void Server::sendState(NetworkState state) {
    ENetPacket * packet = enet_packet_create (NetworkState::serialize(state).data(), PACKET_SIZE, ENET_PACKET_FLAG_RELIABLE);
    enet_host_broadcast (server, 1, packet);
 #endif
+}
+
+void Server::sendSync() {
+   ENetPacket * packet = enet_packet_create (SYNC.c_str(), SYNC.size(), ENET_PACKET_FLAG_RELIABLE);
+   enet_host_broadcast (server, 1, packet);
 }
 
 bool Server::start() {
@@ -160,7 +174,9 @@ bool Server::start() {
 
    try {
       _recv_thread = std::thread(&Peer::networkloop, this, server);
+#ifdef DEBUG
       _debug_thread = std::thread(&Peer::debugloop, this, server);
+#endif
    } catch(std::exception e) {
       return false;
    }
@@ -186,6 +202,10 @@ void Client::sendState(NetworkState state) {
 #endif
 }
 
+void Client::sendSync() {
+   ENetPacket * packet = enet_packet_create (SYNC.c_str(), SYNC.size(), ENET_PACKET_FLAG_RELIABLE);
+   enet_peer_send (server, 0, packet);
+}
 
 bool Client::start() {
    client = enet_host_create (NULL /* create a client host */,
@@ -222,7 +242,9 @@ bool Client::start() {
 
    try {
       _recv_thread = std::thread(&Peer::networkloop, this, client);
+#ifdef DEBUG
       _debug_thread = std::thread(&Peer::debugloop, this, client);
+#endif
    } catch(std::exception e) {
       return false;
    }

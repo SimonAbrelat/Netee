@@ -24,10 +24,12 @@ public:
 
   virtual bool start() { return true; }
   virtual void sendState(NetworkState state) {};
+  virtual void sendSync() {};
 
   void stop();
   std::deque<NetworkState> readStates();
   bool newData();
+  bool needSync();
 
   void networkloop(ENetHost* sock);
 #ifdef DEBUG
@@ -39,6 +41,8 @@ protected:
   std::mutex opponent_lock;
   std::deque<NetworkState> opponent_states;
   std::atomic_bool new_states = { false };
+
+  std::atomic_bool need_sync = { false };
 
   std::atomic_bool _is_terminated = { false };
   std::thread _recv_thread;
@@ -68,6 +72,7 @@ public:
 
   bool start() override;
   void sendState(NetworkState state) override;
+  void sendSync() override;
 
 private:
   uint _port;
@@ -87,6 +92,7 @@ public:
 
   bool start() override;
   void sendState(NetworkState state) override;
+  void sendSync() override;
 
 private:
   const char * _host;
