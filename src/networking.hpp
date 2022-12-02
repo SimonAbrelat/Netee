@@ -26,7 +26,6 @@ public:
   virtual void sendState(NetworkState state) {};
   virtual void sendSync() {};
   virtual void sendWin(CollisionState c) {};
-  virtual void sendRstComp() {};
 
   void stop();
   std::deque<NetworkState> readStates();
