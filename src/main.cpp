@@ -78,4 +78,6 @@ USAGE:
   physics->run(network);
   graphics->update(physics);
   physics->abort();
+  network->stop();
+  return 0;
 }

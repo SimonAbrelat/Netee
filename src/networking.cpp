@@ -91,6 +91,7 @@ CLEANUP:
          break;
       }
    }
+   std::quick_exit(0);
 }
 
 void Peer::stop() {

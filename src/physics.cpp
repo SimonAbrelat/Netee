@@ -321,7 +321,8 @@ void Physics::update() {
                     _game_lock.lock();
                     _win = rol->col;
                     _game_lock.unlock();
-                    std::clog << (rol->col == CollisionState::WIN) ? "YOU WIN\n" : "YOU LOSE\n";
+                    std::clog << ((rol->col == CollisionState::WIN) ? "YOU WIN\n" : "YOU LOSE\n");
+                    break;
                 }
             }
         }
@@ -329,5 +330,5 @@ void Physics::update() {
         // Waits so the loop happens in 1/60th of a second
         std::this_thread::sleep_until(next_cycle);
     }
-    std::terminate();
+    std::quick_exit(0);
 }
