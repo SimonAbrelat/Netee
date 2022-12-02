@@ -24,14 +24,14 @@ public:
 
   virtual bool start() { return true; }
   virtual void sendState(NetworkState state) {};
-  virtual void sendSync() {};
-  virtual void sendWin(CollisionState c) {};
+  virtual void sendData(MetaData data) {};
 
   void stop();
   std::deque<NetworkState> readStates();
+  std::deque<MetaData> readMetadata();
+
+  bool newStates();
   bool newData();
-  bool needSync();
-  short needReset();
 
   void networkloop(ENetHost* sock);
 #ifdef DEBUG
@@ -41,11 +41,10 @@ public:
 
 protected:
   std::mutex opponent_lock;
+  std::deque<MetaData> opponent_metadata;
   std::deque<NetworkState> opponent_states;
   std::atomic_bool new_states = { false };
-
-  std::atomic_bool need_sync = { false };
-  std::atomic_short need_reset = { 0 }; // 0 = no, 1 = yes and I won, 2 = yes and I lost
+  std::atomic_bool new_data = { false };
 
   std::atomic_bool _is_terminated = { false };
   std::thread _recv_thread;
@@ -75,8 +74,7 @@ public:
 
   bool start() override;
   void sendState(NetworkState state) override;
-  void sendSync() override;
-  void sendWin(CollisionState c) override;
+  void sendData(MetaData data) override;
 
 private:
   uint _port;
@@ -96,8 +94,7 @@ public:
 
   bool start() override;
   void sendState(NetworkState state) override;
-  void sendSync() override;
-  void sendWin(CollisionState c) override;
+  void sendData(MetaData data) override;
 
 private:
   const char * _host;

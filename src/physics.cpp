@@ -70,7 +70,7 @@ void Physics::buffer_push(GameState state) {
 #define ITER_ANIM(next, base, frame, TYPE, mirror) \
         (next).anim = Animation::TYPE;                                                                  \
         (next).anim_frame = (frame);                                                                    \
-        (next).anim_active = TYPE##_ANIMATION[(frame)]. is_active;                                      \
+        (next).anim_active = TYPE##_ANIMATION[(frame)].is_active;                                       \
         (next).pos = (base).pos + (((mirror) ? -1 : 1) * TYPE##_ANIMATION[(frame)].input_direction);    \
         (next).sword = (base).sword + (((mirror) ? -1 : 1) * TYPE##_ANIMATION[(frame)].sword_direction);
 
@@ -146,9 +146,7 @@ CollisionState Physics::process_collisions(PlayerState& p1, PlayerState& p2) {
     bool win = false;
     bool loss = false;
 
-    bool clank = false;
     if (p1.anim == Animation::ATTACK || p1.anim == Animation::LUNGE) {
-        win = Collider::is_colliding(_p1_rapier, _p2_body);
         bool swords = Collider::is_colliding(_p1_rapier, _p2_rapier);
         if (swords && (p2.anim == Animation::ATTACK || p2.anim == Animation::LUNGE)) {
             _p1_rapier.is_active = _p2_rapier.is_active = false;
@@ -160,9 +158,9 @@ CollisionState Physics::process_collisions(PlayerState& p1, PlayerState& p2) {
             p2.anim = Animation::NONE;
             p2.anim_frame = 0;
         }
+        win = Collider::is_colliding(_p1_rapier, _p2_body);
     }
     if (p2.anim == Animation::ATTACK || p2.anim == Animation::LUNGE) {
-        loss = Collider::is_colliding(_p2_rapier, _p1_body);
         bool swords = Collider::is_colliding(_p1_rapier, _p2_rapier);
         if (swords && (p1.anim == Animation::ATTACK || p1.anim == Animation::LUNGE)) {
             _p1_rapier.is_active = _p2_rapier.is_active = false;
@@ -174,6 +172,7 @@ CollisionState Physics::process_collisions(PlayerState& p1, PlayerState& p2) {
             p1.anim = Animation::NONE;
             p1.anim_frame = 0;
         }
+        loss = Collider::is_colliding(_p2_rapier, _p1_body);
     }
 
     // Returns state
@@ -194,6 +193,7 @@ void Physics::update() {
 
     // Outside of the loop in case the network does not have inputs
     std::deque<NetworkState> opp_inputs;
+    std::deque<MetaData> opp_data;
 
     // Check if two active hitboxes are touching
     bool clank = false;
@@ -205,24 +205,44 @@ void Physics::update() {
         auto next_cycle = std::chrono::steady_clock::now() + 16ms; // 60 fps
         //auto next_cycle = std::chrono::steady_clock::now() + 32ms; // 30 fps
         //auto next_cycle = std::chrono::steady_clock::now() + 100ms; // 10 fps
-        if (_networking->needSync()) {
-            std::clog << "SYNCING\n";
-            std::this_thread::sleep_until(next_cycle);
-            continue;
-        }
-        short reset_result = _networking->needReset();
-        if (reset_result) {
-            std::clog << ((reset_result == 1) ? "YOU WIN\n" : "YOU LOSE\n");
-            reset();
-            std::this_thread::sleep_until(next_cycle);
-            continue;
+        uint check_frame = std::numeric_limits<unsigned int>::max();
+        bool opp_won = false;
+        bool opp_lost = false;
+
+        if (_networking->newData()) {
+            opp_data = _networking->readMetadata();
+            for (auto it = opp_data.cbegin(); it != opp_data.cend(); ++it) {
+                switch(it->type) {
+                    case PacketType::SYNC:
+                        std::cout << "SYNCING\n";
+                        std::this_thread::sleep_until(next_cycle);
+                        next_cycle = std::chrono::steady_clock::now() + 16ms; // 60 fps
+                        break;
+                    case PacketType::WIN:
+                        if (it->frame < check_frame) {
+                            check_frame = it->frame;
+                        }
+                        opp_won = true;
+                        break;
+                    case PacketType::LOSS:
+                        if (it->frame < check_frame) {
+                            check_frame = it->frame;
+                        }
+                        opp_lost = true;
+                        break;
+                }
+            }
+        } else {
+            check_frame = std::numeric_limits<unsigned int>::max();
+            opp_won = false;
+            opp_lost = false;
         }
 
         // Increment frame
         frame_counter++;
 
 #ifdef LOG
-        std::clog <<
+        std::clog << "Time difference: " <<
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - prev_cycle).count()
             << "\n";
         prev_cycle = std::chrono::steady_clock::now();
@@ -234,7 +254,7 @@ void Physics::update() {
         _input_lock.unlock();
 
         // Get opponent inputs
-        bool new_input = _networking->newData();
+        bool new_input = _networking->newStates();
         uint oldest_frame = std::numeric_limits<unsigned int>::max(); // Determines rollback distance
         NetworkState newest_input; // Used for the speculative input on the current frame
         if (new_input) {
@@ -257,7 +277,7 @@ void Physics::update() {
             uint i = frame_counter - oldest_frame;
             if (i >= _rollback_buffer.size()) {
                 std::cout << "ERROR: BUFFER NOT LONG ENOUGH: " << oldest_frame << "\n";
-                _networking->sendSync();
+                _networking->sendData(MetaData {PacketType::SYNC, frame_counter});
             } else {
                 if (oldest_frame != frame_counter) {
                     // Rollback code
@@ -295,23 +315,14 @@ void Physics::update() {
         CollisionState collision = process_collisions(player1, player2);
 
         // Logs the state of the physics and rollback buffer
-        //std::clog << "P1: "  << (int)player1.pos << ", P2: " << (int)player2.pos << '\n';
 #ifdef LOG
+        std::clog << "P1: "  << (int)player1.pos << ", P2: " << (int)player2.pos << '\n';
         std::clog << "Frame " << frame_counter << " Rollback state: ";
         for (auto it = _rollback_buffer.cbegin(); it != _rollback_buffer.cend(); ++it) {
             std::clog << it->opponent_input << " ";
         }
         std::clog << "\n";
 #endif
-        /*
-        std::clog << "Frame " << frame_counter << " missing: ";
-        for (auto it = _rollback_buffer.cbegin(); it != _rollback_buffer.cend(); ++it) {
-            if (!it->opponent_input) {
-                std::clog << it->frame << " ";
-            }
-        }
-        std::clog << "\n";
-        */
 
         // Push the current state into the rollback buffer
         buffer_push(GameState{
@@ -327,16 +338,42 @@ void Physics::update() {
         _networking->sendState(NetworkState{curr, frame_counter, 0});
 
         // Resolves agreed upon collisions
-        bool has_consensus = true;
+        bool has_win_collision = false;
+        bool has_loss_collision = false;
+
+        bool has_rollback = true;
         for (auto rol = _rollback_buffer.rbegin(); rol != _rollback_buffer.rend(); ++rol) {
-            has_consensus &= rol->opponent_input;
-            if (has_consensus) {
-                if (rol->col == CollisionState::WIN
-                 || rol->col == CollisionState::LOSS) {
-                    _networking->sendWin(rol->col);
-                    break;
+            has_rollback &= rol->opponent_input;
+            if (has_rollback) {
+                if (!has_win_collision && !has_loss_collision) {
+                    if (rol->col == CollisionState::WIN) {
+                        if (opp_lost) {
+                            std::cout << "YOU WIN\n";
+                            frame_counter = 0;
+                            reset();
+                            next_cycle = std::chrono::steady_clock::now() + 1000ms; // Massive delay to resync
+                        } else {
+                            has_win_collision = true;
+                        }
+                    }
+                    if (rol->col == CollisionState::LOSS) {
+                        if (opp_won) {
+                            std::cout << "YOU LOSE\n";
+                            frame_counter = 0;
+                            reset();
+                            next_cycle = std::chrono::steady_clock::now() + 1000ms; // Massive delay to resync
+                        } else {
+                            has_loss_collision = true;
+                        }
+                    }
                 }
             }
+        }
+
+        if(has_win_collision) {
+            _networking->sendData(MetaData {PacketType::WIN, frame_counter});
+        } else if (has_loss_collision) {
+            _networking->sendData(MetaData {PacketType::LOSS, frame_counter});
         }
 
         // Waits so the loop happens in 1/60th of a second

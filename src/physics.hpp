@@ -7,6 +7,7 @@
 #include <thread>
 #include <mutex>
 #include <deque>
+#include <memory>
 
 #include <fpm/fixed.hpp>
 #include <fpm/math.hpp>

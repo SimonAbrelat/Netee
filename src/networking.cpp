@@ -51,25 +51,22 @@ void Peer::networkloop(ENetHost* sock) {
    std::cout << "IN THREAD\n";
    ENetEvent event;
    NetworkState new_state;
+   MetaData meta;
    int status = 0;
    while (_is_terminated == false) {
       while ((status = enet_host_service (sock, &event, 10)) > 0) {
          switch (event.type) {
-            case ENET_EVENT_TYPE_CONNECT:
-               std::clog << "Connected: " << event.peer->address.host << ", "  << event.peer->address.port << '\n';
-               break;
             case ENET_EVENT_TYPE_RECEIVE:
-               if (event.packet->dataLength == SYNC.size()) {
-                  need_sync = true;
-                  goto CLEANUP;
-               }
-               if (event.packet->dataLength == IWIN.size()) {
-                  need_reset = 2;
-                  goto CLEANUP;
-               }
-               if (event.packet->dataLength == ILOSE.size()) {
-                  need_reset = 1;
-                  goto CLEANUP;
+               if (event.packet->dataLength == METADATA_SIZE) {
+                  meta = MetaData::deserialize(reinterpret_cast<char *>(event.packet->data));
+                  if (!meta.valid) {
+                     goto CLEANUP;
+                  }
+                  opponent_lock.lock();
+                  opponent_metadata.push_front(meta);
+                  new_data= true;
+                  opponent_lock.unlock();
+
                }
                if (event.packet->dataLength != PACKET_SIZE) {
                   goto CLEANUP;
@@ -85,8 +82,10 @@ void Peer::networkloop(ENetHost* sock) {
                      goto CLEANUP;
                   }
                }
+               opponent_lock.lock();
                opponent_states.push_front(new_state);
                new_states = true;
+               opponent_lock.unlock();
 CLEANUP:
                enet_packet_destroy (event.packet);
                break;
@@ -120,20 +119,21 @@ std::deque<NetworkState> Peer::readStates() {
    return ret;
 }
 
-bool Peer::newData() {
+std::deque<MetaData> Peer::readMetadata() {
+   opponent_lock.lock();
+   std::deque<MetaData> ret = opponent_metadata;
+   new_data = false;
+   opponent_metadata.clear();
+   opponent_lock.unlock();
+   return ret;
+}
+
+bool Peer::newStates() {
    return new_states;
 }
 
-bool Peer::needSync() {
-   bool ret = need_sync;
-   need_sync = false;
-   return ret;
-}
-
-short Peer::needReset() {
-   short ret = need_reset;
-   need_reset = 0;
-   return ret;
+bool Peer::newData() {
+   return new_data;
 }
 
 Server::~Server() {
@@ -155,15 +155,8 @@ void Server::sendState(NetworkState state) {
 #endif
 }
 
-void Server::sendSync() {
-   ENetPacket * packet = enet_packet_create (SYNC.c_str(), SYNC.size(), ENET_PACKET_FLAG_RELIABLE);
-   enet_host_broadcast (server, 1, packet);
-}
-
-void Server::sendWin(CollisionState c) {
-   std::string status = c == CollisionState::WIN ? IWIN : ILOSE;
-   need_reset = c == CollisionState::WIN ? 1 : 2;
-   ENetPacket * packet = enet_packet_create (status.c_str(), status.size(), ENET_PACKET_FLAG_RELIABLE);
+void Server::sendData(MetaData data) {
+   ENetPacket * packet = enet_packet_create (MetaData::serialize(data).data(), METADATA_SIZE, ENET_PACKET_FLAG_RELIABLE);
    enet_host_broadcast (server, 1, packet);
 }
 
@@ -224,15 +217,8 @@ void Client::sendState(NetworkState state) {
 #endif
 }
 
-void Client::sendSync() {
-   ENetPacket * packet = enet_packet_create (SYNC.c_str(), SYNC.size(), ENET_PACKET_FLAG_RELIABLE);
-   enet_peer_send (server, 0, packet);
-}
-
-void Client::sendWin(CollisionState c) {
-   std::string status = c == CollisionState::WIN ? IWIN : ILOSE;
-   need_reset = c == CollisionState::WIN ? 1 : 2;
-   ENetPacket * packet = enet_packet_create (status.c_str(), status.size(), ENET_PACKET_FLAG_RELIABLE);
+void Client::sendData(MetaData data) {
+   ENetPacket * packet = enet_packet_create (MetaData::serialize(data).data(), METADATA_SIZE, ENET_PACKET_FLAG_RELIABLE);
    enet_peer_send (server, 0, packet);
 }
 
