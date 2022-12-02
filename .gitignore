@@ -2,3 +2,4 @@ build/*
 lib/udt4/win
 lib/udt4/doc
 lib/udt4/**/*.o
+lib/enet-1.3.17
