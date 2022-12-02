@@ -66,6 +66,8 @@ void Graphics::update(std::shared_ptr<Physics> phys) {
 
         input.attack = state[SDL_SCANCODE_Q];
         input.lunge = state[SDL_SCANCODE_W];
+        input.parry = state[SDL_SCANCODE_E];
+        input.feint = state[SDL_SCANCODE_R];
 
         // CLOSE WINDOW
         if (state[SDL_SCANCODE_ESCAPE]) {
@@ -109,17 +111,25 @@ void Graphics::draw(std::shared_ptr<Physics> phys) {
     p2_rapier_rect.w = 100;
     p2_rapier_rect.h = 10;
 
-    SDL_SetRenderDrawColor(_ren, 255, 4, 45, 255);
-    SDL_RenderFillRect(_ren, &p1_rapier_rect);
-
-    SDL_SetRenderDrawColor(_ren, 210, 4, 45, 255);
-    SDL_RenderFillRect(_ren, &p1_rect);
-
-    SDL_SetRenderDrawColor(_ren, 255, 0, 255, 200);
+    if (p2.anim == Animation::PARRY || p2.anim == Animation::FEINT) {
+        SDL_SetRenderDrawColor(_ren, 255, 165, 0, 255);
+    } else {
+        SDL_SetRenderDrawColor(_ren, 255, 0, 255, 200);
+    }
     SDL_RenderFillRect(_ren, &p2_rapier_rect);
+
+    if (p1.anim == Animation::PARRY || p1.anim == Animation::FEINT) {
+        SDL_SetRenderDrawColor(_ren, 255, 165, 0, 255);
+    } else {
+        SDL_SetRenderDrawColor(_ren, 255, 4, 45, 255);
+    }
+    SDL_RenderFillRect(_ren, &p1_rapier_rect);
 
     SDL_SetRenderDrawColor(_ren, 0, 0, 255, 200);
     SDL_RenderFillRect(_ren, &p2_rect);
+    
+    SDL_SetRenderDrawColor(_ren, 210, 4, 45, 255);
+    SDL_RenderFillRect(_ren, &p1_rect);
 
 
     SDL_SetRenderDrawColor(_ren, 181, 126, 220, 255);
