@@ -12,6 +12,8 @@
 using f16 = fpm::fixed_16_16;
 
 const std::string SYNC = "SYNC";
+const std::string IWIN = "I WIN";
+const std::string ILOSE = "I LOSE";
 
 enum struct CollisionState {
     NONE,

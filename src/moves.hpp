@@ -11,7 +11,7 @@ struct Move {
 const Move ATTACK_ANIMATION[] {
     // STARTUP: 3 frames
     // rapier +30
-    {0, 12, true}, {0, 9, true}, {0, 9, true},
+    {0, 12}, {0, 9}, {0, 9},
 
     // ACTIVE: 3 frames
     {0, 0, true}, {0, 0, true}, {0, 0, true},

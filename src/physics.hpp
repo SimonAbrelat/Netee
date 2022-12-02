@@ -27,6 +27,7 @@ public:
     Physics();
     ~Physics();
 
+    void reset();
     bool run(std::shared_ptr<Peer> _net);
     void abort();
 
@@ -34,7 +35,6 @@ public:
     void update_state();
 
     PlayerState get(bool player);
-    CollisionState getWin();
 
 private:
     void update();
@@ -56,7 +56,6 @@ private:
     std::mutex _input_lock;
     InputState _input {};
 
-    std::mutex _game_lock;
     CollisionState _win = CollisionState::NONE;
 
     std::shared_ptr<Peer> _networking;

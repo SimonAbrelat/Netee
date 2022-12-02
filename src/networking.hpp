@@ -25,11 +25,14 @@ public:
   virtual bool start() { return true; }
   virtual void sendState(NetworkState state) {};
   virtual void sendSync() {};
+  virtual void sendWin(CollisionState c) {};
+  virtual void sendRstComp() {};
 
   void stop();
   std::deque<NetworkState> readStates();
   bool newData();
   bool needSync();
+  short needReset();
 
   void networkloop(ENetHost* sock);
 #ifdef DEBUG
@@ -43,6 +46,7 @@ protected:
   std::atomic_bool new_states = { false };
 
   std::atomic_bool need_sync = { false };
+  std::atomic_short need_reset = { 0 }; // 0 = no, 1 = yes and I won, 2 = yes and I lost
 
   std::atomic_bool _is_terminated = { false };
   std::thread _recv_thread;
@@ -73,6 +77,7 @@ public:
   bool start() override;
   void sendState(NetworkState state) override;
   void sendSync() override;
+  void sendWin(CollisionState c) override;
 
 private:
   uint _port;
@@ -93,6 +98,7 @@ public:
   bool start() override;
   void sendState(NetworkState state) override;
   void sendSync() override;
+  void sendWin(CollisionState c) override;
 
 private:
   const char * _host;

@@ -63,6 +63,14 @@ void Peer::networkloop(ENetHost* sock) {
                   need_sync = true;
                   goto CLEANUP;
                }
+               if (event.packet->dataLength == IWIN.size()) {
+                  need_reset = 2;
+                  goto CLEANUP;
+               }
+               if (event.packet->dataLength == ILOSE.size()) {
+                  need_reset = 1;
+                  goto CLEANUP;
+               }
                if (event.packet->dataLength != PACKET_SIZE) {
                   goto CLEANUP;
                }
@@ -122,6 +130,12 @@ bool Peer::needSync() {
    return ret;
 }
 
+short Peer::needReset() {
+   short ret = need_reset;
+   need_reset = 0;
+   return ret;
+}
+
 Server::~Server() {
    enet_host_destroy(server);
 }
@@ -143,6 +157,13 @@ void Server::sendState(NetworkState state) {
 
 void Server::sendSync() {
    ENetPacket * packet = enet_packet_create (SYNC.c_str(), SYNC.size(), ENET_PACKET_FLAG_RELIABLE);
+   enet_host_broadcast (server, 1, packet);
+}
+
+void Server::sendWin(CollisionState c) {
+   std::string status = c == CollisionState::WIN ? IWIN : ILOSE;
+   need_reset = c == CollisionState::WIN ? 1 : 2;
+   ENetPacket * packet = enet_packet_create (status.c_str(), status.size(), ENET_PACKET_FLAG_RELIABLE);
    enet_host_broadcast (server, 1, packet);
 }
 
@@ -205,6 +226,13 @@ void Client::sendState(NetworkState state) {
 
 void Client::sendSync() {
    ENetPacket * packet = enet_packet_create (SYNC.c_str(), SYNC.size(), ENET_PACKET_FLAG_RELIABLE);
+   enet_peer_send (server, 0, packet);
+}
+
+void Client::sendWin(CollisionState c) {
+   std::string status = c == CollisionState::WIN ? IWIN : ILOSE;
+   need_reset = c == CollisionState::WIN ? 1 : 2;
+   ENetPacket * packet = enet_packet_create (status.c_str(), status.size(), ENET_PACKET_FLAG_RELIABLE);
    enet_peer_send (server, 0, packet);
 }
 

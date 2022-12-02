@@ -2,25 +2,30 @@
 #include "moves.hpp"
 
 Physics::Physics() {
-    _p1_body = Collider(100,100,50,50);
-    _p2_body = Collider(530,100,50,50);
-    _p1_rapier = Collider(100,100,10,100);
-    _p2_rapier = Collider(480,100,10,100);
-
-    for (int i = 0; i < BUFFER; i++) {
-        buffer_push(GameState{
-            0,
-            PlayerState {_p1_body.x, _p1_rapier.x, 0, Animation::NONE}, InputState{},
-            PlayerState {_p2_body.x, _p2_rapier.x, 0, Animation::NONE}, InputState{},
-            CollisionState::NONE, true
-        });
-    }
+    reset();
 };
 
 Physics::~Physics() {
     _run_physics = false;
     _physics_thread.join();
 };
+
+void Physics::reset() {
+    _player_lock.lock();
+    _p1_body = Collider(100,100,50,50);
+    _p2_body = Collider(530,100,50,50);
+    _p1_rapier = Collider(100,100,10,100);
+    _p2_rapier = Collider(480,100,10,100);
+    for (int i = 0; i < BUFFER; i++) {
+        buffer_push(GameState{
+            0,
+            PlayerState {_p1_body.x, _p1_rapier.x, 0, Animation::NONE, false, false}, InputState{},
+            PlayerState {_p2_body.x, _p2_rapier.x, 0, Animation::NONE, false, false}, InputState{},
+            CollisionState::NONE, true
+        });
+    }
+    _player_lock.unlock();
+}
 
 bool Physics::run(std::shared_ptr<Peer> net){
     _networking = net;
@@ -52,13 +57,6 @@ PlayerState Physics::get(bool player){
     _player_lock.unlock();
     return ret;
 };
-
-CollisionState Physics::getWin(){
-    _game_lock.lock();
-    CollisionState ret = _win;
-    _game_lock.unlock();
-    return ret;
-}
 
 void Physics::buffer_push(GameState state) {
     if (_rollback_buffer.size() == BUFFER + 1) {
@@ -113,7 +111,7 @@ void Physics::process_input(PlayerState& next, const PlayerState& base, const In
             } else {
                 // Smooth player movement
                 next.pos = base.pos + ((mirror ? -1 : 1) * (WALK_SPEED * input.direction));
-                next.sword = base.sword + ((mirror ? -1 : 1) *(WALK_SPEED * input.direction));
+                next.sword = base.sword + ((mirror ? -1 : 1) * (WALK_SPEED * input.direction));
             }
             break;
     }
@@ -209,6 +207,13 @@ void Physics::update() {
         //auto next_cycle = std::chrono::steady_clock::now() + 100ms; // 10 fps
         if (_networking->needSync()) {
             std::clog << "SYNCING\n";
+            std::this_thread::sleep_until(next_cycle);
+            continue;
+        }
+        short reset_result = _networking->needReset();
+        if (reset_result) {
+            std::clog << ((reset_result == 1) ? "YOU WIN\n" : "YOU LOSE\n");
+            reset();
             std::this_thread::sleep_until(next_cycle);
             continue;
         }
@@ -328,11 +333,7 @@ void Physics::update() {
             if (has_consensus) {
                 if (rol->col == CollisionState::WIN
                  || rol->col == CollisionState::LOSS) {
-                    _run_physics = false;
-                    _game_lock.lock();
-                    _win = rol->col;
-                    _game_lock.unlock();
-                    std::clog << ((rol->col == CollisionState::WIN) ? "YOU WIN\n" : "YOU LOSE\n");
+                    _networking->sendWin(rol->col);
                     break;
                 }
             }
