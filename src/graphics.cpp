@@ -115,7 +115,7 @@ void Graphics::draw(std::shared_ptr<Physics> phys) {
     if (p2.anim_active && !p2.is_clank) {
         SDL_SetRenderDrawColor(_ren, 255, 165, 0, 255);
     } else {
-        SDL_SetRenderDrawColor(_ren, 255, 0, 255, 200);
+        SDL_SetRenderDrawColor(_ren, 0, 125, 255, 255);
     }
     SDL_RenderFillRect(_ren, &p2_rapier_rect);
 
@@ -123,7 +123,7 @@ void Graphics::draw(std::shared_ptr<Physics> phys) {
     if (p1.anim_active && !p1.is_clank) {
         SDL_SetRenderDrawColor(_ren, 255, 165, 0, 255);
     } else {
-        SDL_SetRenderDrawColor(_ren, 255, 4, 45, 255);
+        SDL_SetRenderDrawColor(_ren, 244, 35, 87, 255);
     }
     SDL_RenderFillRect(_ren, &p1_rapier_rect);
 
