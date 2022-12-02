@@ -35,7 +35,7 @@ void Peer::debugloop(ENetHost* sock) {
       msg_lock.lock();
       for (auto msg = msg_queue.begin(); msg != msg_queue.end(); ++msg) {
          if (msg->time == 0) {
-            std::cout << "SENDING: " << msg->msg.frame << '\n';
+            //std::cout << "SENDING: " << msg->msg.frame << '\n';
             ENetPacket* packet = enet_packet_create (NetworkState::serialize(msg->msg).data(), PACKET_SIZE, ENET_PACKET_FLAG_RELIABLE);
             enet_host_broadcast (sock, 1, packet);
          }
@@ -160,7 +160,9 @@ bool Server::start() {
 
    try {
       _recv_thread = std::thread(&Peer::networkloop, this, server);
+#ifdef DEBUG
       _debug_thread = std::thread(&Peer::debugloop, this, server);
+#endif
    } catch(std::exception e) {
       return false;
    }
@@ -222,7 +224,9 @@ bool Client::start() {
 
    try {
       _recv_thread = std::thread(&Peer::networkloop, this, client);
+#ifdef DEBUG
       _debug_thread = std::thread(&Peer::debugloop, this, client);
+#endif
    } catch(std::exception e) {
       return false;
    }

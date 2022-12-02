@@ -3,8 +3,9 @@
 
 Physics::Physics() {
     _p1_body = Collider(100,100,50,50);
-    _p2_body = Collider(530,100,50,50);
     _p1_rapier = Collider(100,100,10,100);
+
+    _p2_body = Collider(530,100,50,50);
     _p2_rapier = Collider(480,100,10,100);
 
     buffer_push(GameState{
@@ -206,9 +207,7 @@ void Physics::update() {
             opp_inputs = _networking->readStates();
             newest_input = opp_inputs.front();
             // Iterates through everything in the buffer returned from the network
-            std::clog << "Processing inputs: ";
             for (auto it = opp_inputs.cbegin(); it != opp_inputs.cend(); ++it) {
-                std::clog << it->frame << " ";
                 if (it->frame < oldest_frame && oldest_frame != 0) {
                     oldest_frame = it->frame;
                 }
@@ -216,7 +215,6 @@ void Physics::update() {
                     newest_input = *it;
                 }
             }
-            std::clog << '\n';
         }
         _player_lock.lock();
         // Calculate Rollbacks
@@ -263,8 +261,9 @@ void Physics::update() {
         CollisionState collision = process_collisions(player1, player2);
 
         // Logs the state of the physics and rollback buffer
-        //std::clog << "P1: "  << (int)player1.pos << ", P2: " << (int)player2.pos << '\n';
-        std::clog << "Frame " << frame_counter << " Rollback state: ";
+        //std::clog << "P1: "  << (290.0 -(float)player1.pos) << ", P2: " << ((float)player2.pos) -340.0 << '\n';
+        std::clog << "P1: "  << (240.0 -(float)player1.sword) << ", P2: " << ((float)player2.sword) -340.0 << '\n';
+        //std::clog << "Frame " << frame_counter << " Rollback state: ";
         for (auto it = _rollback_buffer.cbegin(); it != _rollback_buffer.cend(); ++it) {
             std::clog << it->opponent_input << " ";
         }
@@ -285,12 +284,19 @@ void Physics::update() {
             player1, curr,
             player2, newest_input.inputs,
             collision,
-            newest_input.frame == frame_counter
+            newest_input.frame == frame_counter,
+            0
         });
+        size_t game_hash = GameState::genHash(_rollback_buffer.front());
+        _rollback_buffer.front().hash_state = game_hash;
         _player_lock.unlock();
 
         // Send the locked input to the opponent
-        _networking->sendState(NetworkState{curr, frame_counter, 0});
+        _networking->sendState(NetworkState{
+            curr,
+            frame_counter,
+            game_hash
+        });
 
         // Resolves agreed upon collisions
         bool has_consensus = true;
@@ -304,6 +310,7 @@ void Physics::update() {
                     _win = rol->col;
                     _game_lock.unlock();
                 }
+                if (
             }
         }
 

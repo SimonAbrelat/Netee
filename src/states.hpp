@@ -1,11 +1,13 @@
 #ifndef STATES_HPP
 #define STATES_HPP
 
+#include <type_traits>
+
 #include <fpm/fixed.hpp>
 #include <fpm/math.hpp>
 
 // USED FOR DEBUGGING
-#define DEBUG 1
+//#define DEBUG 1
 
 using f16 = fpm::fixed_16_16;
 
@@ -38,6 +40,13 @@ struct InputState {
     bool feint;
 };
 
+// The hash_combine used by BOOST
+template <class T>
+inline void hash_combine(std::size_t& seed, const T& v) {
+    std::hash<T> hasher;
+    seed ^= hasher(v) + 0x9e3779b9 + (seed<<6) + (seed>>2);
+}
+
 struct GameState {
     uint frame;
     PlayerState p1;
@@ -46,6 +55,23 @@ struct GameState {
     InputState i2;
     CollisionState col;
     bool opponent_input;
+    size_t state_hash;
+
+    static size_t genHash(const GameState& val) {
+        std::size_t result = 0;
+        hash_combine(result, val.frame);
+        hash_combine(result, val.p1.pos.raw_value());
+        hash_combine(result, val.p1.sword.raw_value());
+        hash_combine(result, val.p1.anim_frame);
+        hash_combine(result, static_cast<int>(val.p1.anim));
+        hash_combine(result, val.i1.direction);
+        hash_combine(result, val.i1.attack);
+        hash_combine(result, val.i1.lunge);
+        hash_combine(result, val.i1.parry);
+        hash_combine(result, val.i1.feint);
+        hash_combine(result, static_cast<int>(val.col));
+        return result;
+    }
 };
 
 const size_t PACKET_SIZE = 12;
@@ -53,7 +79,7 @@ const size_t PACKET_SIZE = 12;
 struct NetworkState {
     InputState inputs;
     uint frame;
-    uint state_hash;
+    size_t state_hash;
     bool valid = true;
 
     static void print(NetworkState& s){
