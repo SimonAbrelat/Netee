@@ -32,6 +32,8 @@ struct PlayerState {
     f16 sword;
     uint8_t anim_frame;
     Animation anim;
+    bool anim_active;
+    bool is_clank;
 };
 
 struct InputState {

@@ -111,18 +111,20 @@ void Graphics::draw(std::shared_ptr<Physics> phys) {
     p2_rect.h = 50;
 
     p2_rapier_rect.x = static_cast<int>(p2.sword);
-    p2_rapier_rect.y = 100;
+    p2_rapier_rect.y = 105;
     p2_rapier_rect.w = 100;
     p2_rapier_rect.h = 10;
 
-    if (p2.anim == Animation::PARRY || p2.anim == Animation::FEINT) {
+    //if (p2.anim == Animation::LUNGE || p2.anim == Animation::FEINT) {
+    if (p2.anim_active && !p2.is_clank) {
         SDL_SetRenderDrawColor(_ren, 255, 165, 0, 255);
     } else {
         SDL_SetRenderDrawColor(_ren, 255, 0, 255, 200);
     }
     SDL_RenderFillRect(_ren, &p2_rapier_rect);
 
-    if (p1.anim == Animation::PARRY || p1.anim == Animation::FEINT) {
+    //if (p1.anim == Animation::LUNGE || p1.anim == Animation::FEINT) {
+    if (p1.anim_active && !p1.is_clank) {
         SDL_SetRenderDrawColor(_ren, 255, 165, 0, 255);
     } else {
         SDL_SetRenderDrawColor(_ren, 255, 4, 45, 255);
@@ -131,7 +133,7 @@ void Graphics::draw(std::shared_ptr<Physics> phys) {
 
     SDL_SetRenderDrawColor(_ren, 0, 0, 255, 200);
     SDL_RenderFillRect(_ren, &p2_rect);
-    
+
     SDL_SetRenderDrawColor(_ren, 210, 4, 45, 255);
     SDL_RenderFillRect(_ren, &p1_rect);
 

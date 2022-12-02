@@ -72,6 +72,7 @@ void Physics::buffer_push(GameState state) {
 #define ITER_ANIM(next, base, frame, TYPE, mirror) \
         (next).anim = Animation::TYPE;                                                                  \
         (next).anim_frame = (frame);                                                                    \
+        (next).anim_active = TYPE##_ANIMATION[(frame)]. is_active;                                      \
         (next).pos = (base).pos + (((mirror) ? -1 : 1) * TYPE##_ANIMATION[(frame)].input_direction);    \
         (next).sword = (base).sword + (((mirror) ? -1 : 1) * TYPE##_ANIMATION[(frame)].sword_direction);
 
@@ -128,16 +129,19 @@ CollisionState Physics::process_collisions(PlayerState& p1, PlayerState& p2) {
 
     // Reset hitbox's activity
     if (p1.anim == Animation::NONE) {
-        _p1_rapier.is_active = true;
-    }
-    if (p1.anim == Animation::FEINT) {
         _p1_rapier.is_active = false;
+        p1.anim_active = false;
+        p1.is_clank = false;
+    } else {
+        _p1_rapier.is_active = p1.anim_active && !p1.is_clank;
     }
+
     if (p2.anim == Animation::NONE) {
-        _p2_rapier.is_active = true;
-    }
-    if (p2.anim == Animation::FEINT) {
         _p2_rapier.is_active = false;
+        p2.anim_active = false;
+        p2.is_clank = false;
+    } else {
+        _p2_rapier.is_active = p2.anim_active && !p2.is_clank;
     }
 
     // Calculates the collision
@@ -148,11 +152,12 @@ CollisionState Physics::process_collisions(PlayerState& p1, PlayerState& p2) {
     if (p1.anim == Animation::ATTACK || p1.anim == Animation::LUNGE) {
         bool swords = Collider::is_colliding(_p1_rapier, _p2_rapier);
         if (swords && (p2.anim == Animation::ATTACK || p2.anim == Animation::LUNGE)) {
-            _p1_rapier.is_active = false;
-            _p2_rapier.is_active = false;
+            _p1_rapier.is_active = _p2_rapier.is_active = false;
+            p1.is_clank = p2.is_clank = true;
         }
         if (swords && (p2.anim == Animation::PARRY)) {
             _p1_rapier.is_active = false;
+            p1.is_clank = true;
             p2.anim = Animation::NONE;
             p2.anim_frame = 0;
         }
@@ -160,18 +165,22 @@ CollisionState Physics::process_collisions(PlayerState& p1, PlayerState& p2) {
     if (p2.anim == Animation::ATTACK || p2.anim == Animation::LUNGE) {
         bool swords = Collider::is_colliding(_p1_rapier, _p2_rapier);
         if (swords && (p1.anim == Animation::ATTACK || p1.anim == Animation::LUNGE)) {
-            _p1_rapier.is_active = false;
-            _p2_rapier.is_active = false;
+            _p1_rapier.is_active = _p2_rapier.is_active = false;
+            p1.is_clank = p2.is_clank = true;
         }
         if (swords && (p1.anim == Animation::PARRY)) {
             _p2_rapier.is_active = false;
-            p2.anim = Animation::NONE;
-            p2.anim_frame = 0;
+            p2.is_clank = true;
+            p1.anim = Animation::NONE;
+            p1.anim_frame = 0;
         }
     }
 
     // Returns state
-    if (win) {
+    if (win && loss) {
+       p1.is_clank = true;
+       p2.is_clank = true;
+    } else if (win) {
         return CollisionState::WIN;
     } else if (loss) {
         return CollisionState::LOSS;
