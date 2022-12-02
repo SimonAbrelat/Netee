@@ -61,9 +61,9 @@ void Peer::networkloop(ENetHost* sock) {
             case ENET_EVENT_TYPE_RECEIVE:
                if (event.packet->dataLength == SYNC.size()) {
                   need_sync = true;
+                  goto CLEANUP;
                }
                if (event.packet->dataLength != PACKET_SIZE) {
-                  std::clog << "PACKET TOO LARGE\n";
                   goto CLEANUP;
                }
                new_state = NetworkState::deserialize(reinterpret_cast<char*>(event.packet->data));
@@ -118,7 +118,7 @@ bool Peer::newData() {
 bool Peer::needSync() {
    bool ret = need_sync;
    need_sync = false;
-   return need_sync;
+   return ret;
 }
 
 Server::~Server() {

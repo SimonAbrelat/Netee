@@ -7,6 +7,7 @@
 #include <string>
 // USED FOR DEBUGGING
 //#define DEBUG 1
+//#define LOG 1
 
 using f16 = fpm::fixed_16_16;
 

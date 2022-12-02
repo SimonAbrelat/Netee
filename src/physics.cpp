@@ -188,21 +188,29 @@ void Physics::update() {
 
     // Check if two active hitboxes are touching
     bool clank = false;
+#ifdef LOG
     auto prev_cycle =  std::chrono::steady_clock::now();
+#endif
 
     while (_run_physics) {
-        // Setup physics loop
-        frame_counter++;
-        //auto next_cycle = std::chrono::steady_clock::now() + 16ms; // 60 fps
+        auto next_cycle = std::chrono::steady_clock::now() + 16ms; // 60 fps
         //auto next_cycle = std::chrono::steady_clock::now() + 32ms; // 30 fps
-        auto next_cycle = std::chrono::steady_clock::now() + 100ms; // 10 fps
+        //auto next_cycle = std::chrono::steady_clock::now() + 100ms; // 10 fps
         if (_networking->needSync()) {
-            next_cycle += 100ms;
+            std::clog << "SYNCING\n";
+            std::this_thread::sleep_until(next_cycle);
+            continue;
         }
+
+        // Increment frame
+        frame_counter++;
+
+#ifdef LOG
         std::clog <<
         std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - prev_cycle).count()
             << "\n";
         prev_cycle = std::chrono::steady_clock::now();
+#endif
 
         // Get new local inputs
         _input_lock.lock();
@@ -217,9 +225,7 @@ void Physics::update() {
             opp_inputs = _networking->readStates();
             newest_input = opp_inputs.front();
             // Iterates through everything in the buffer returned from the network
-            std::clog << "Processing inputs: ";
             for (auto it = opp_inputs.cbegin(); it != opp_inputs.cend(); ++it) {
-                std::clog << it->frame << " ";
                 if (it->frame < oldest_frame && oldest_frame > 0) {
                     oldest_frame = it->frame;
                 }
@@ -227,7 +233,6 @@ void Physics::update() {
                     newest_input = *it;
                 }
             }
-            std::clog << '\n';
         }
         _player_lock.lock();
         // Calculate Rollbacks
@@ -275,20 +280,22 @@ void Physics::update() {
 
         // Logs the state of the physics and rollback buffer
         //std::clog << "P1: "  << (int)player1.pos << ", P2: " << (int)player2.pos << '\n';
+#ifdef LOG
         std::clog << "Frame " << frame_counter << " Rollback state: ";
         for (auto it = _rollback_buffer.cbegin(); it != _rollback_buffer.cend(); ++it) {
             std::clog << it->opponent_input << " ";
         }
-        /*
         std::clog << "\n";
+#endif
+        /*
         std::clog << "Frame " << frame_counter << " missing: ";
         for (auto it = _rollback_buffer.cbegin(); it != _rollback_buffer.cend(); ++it) {
             if (!it->opponent_input) {
                 std::clog << it->frame << " ";
             }
         }
-        */
         std::clog << "\n";
+        */
 
         // Push the current state into the rollback buffer
         buffer_push(GameState{
@@ -314,6 +321,7 @@ void Physics::update() {
                     _game_lock.lock();
                     _win = rol->col;
                     _game_lock.unlock();
+                    std::clog << (rol->col == CollisionState::WIN) ? "YOU WIN\n" : "YOU LOSE\n";
                 }
             }
         }

@@ -20,7 +20,7 @@
 using f16 = fpm::fixed_16_16;
 
 const f16 WALK_SPEED = f16(0.75);
-const size_t BUFFER = 30;
+const size_t BUFFER = 10;
 
 class Physics {
 public:
@@ -51,7 +51,7 @@ private:
 
     std::deque<GameState> _rollback_buffer;
     std::thread _physics_thread;
-    std::atomic_bool _run_physics = true;
+    std::atomic_bool _run_physics = { true };
 
     std::mutex _input_lock;
     InputState _input {};
