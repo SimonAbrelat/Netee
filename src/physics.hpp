@@ -8,8 +8,6 @@
 #include <mutex>
 #include <deque>
 
-#include <boost/circular_buffer.hpp>
-
 #include <fpm/fixed.hpp>
 #include <fpm/math.hpp>
 

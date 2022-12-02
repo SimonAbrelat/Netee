@@ -1,11 +1,9 @@
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <memory>
 #include <string>
-
-#include <boost/asio.hpp>
-#include <boost/algorithm/string.hpp>
 
 #include <fpm/fixed.hpp>
 
@@ -32,11 +30,12 @@ int main(int argc, char** argv) {
   if (argc < 2){
       std::clog << "BROKE\n";
 USAGE:
-    std::cout << "usage: game -host [host_address] -server\n";
+    std::cout << "server usage: ./game -server <ip> -port <port>\n";
+    std::cout << "client usage: ./game -host <ip> -port <port>\n";
     std::cout << "options:\n";
-    std::cout << "  -host: Host must be valid IP address\n";
-    std::cout << "  -port: Port cannot be 0\n";
-    std::cout << "  -server: makes instance server\n";
+    std::cout << "  -host: Host must be a valid IP address.\n";
+    std::cout << "  -server: Makes the instance a server.\n";
+    std::cout << "  -port: Port for the server or the host to connect to; this is not required.\n";
     return 0;
   }
 

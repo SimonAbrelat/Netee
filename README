@@ -1,2 +1,0 @@
-Required command to install SDL
-`sudo apt install git build-essential pkg-config cmake cmake-data libsdl2-dev`
