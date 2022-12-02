@@ -26,6 +26,27 @@ Peer::~Peer() {
    enet_deinitialize();
 }
 
+#ifdef DEBUG
+using std::chrono::operator""ms;
+
+void Peer::debugloop(ENetHost* sock) {
+   while (_is_debug) {
+      const auto next_cycle = std::chrono::steady_clock::now() + 10ms;
+      msg_lock.lock();
+      for (auto msg = msg_queue.begin(); msg != msg_queue.end(); ++msg) {
+         if (msg->time == 0) {
+            std::cout << "SENDING: " << msg->msg.frame << '\n';
+            ENetPacket* packet = enet_packet_create (NetworkState::serialize(msg->msg).data(), PACKET_SIZE, ENET_PACKET_FLAG_RELIABLE);
+            enet_host_broadcast (sock, 1, packet);
+         }
+         msg->time--;
+      }
+      msg_lock.unlock();
+      std::this_thread::sleep_until(next_cycle);
+   }
+}
+#endif
+
 void Peer::networkloop(ENetHost* sock) {
    std::cout << "IN THREAD\n";
    ENetEvent event;
@@ -38,8 +59,19 @@ void Peer::networkloop(ENetHost* sock) {
                std::clog << "Connected: " << event.peer->address.host << ", "  << event.peer->address.port << '\n';
                break;
             case ENET_EVENT_TYPE_RECEIVE:
+               if (event.packet->dataLength == SYNC.size()) {
+                  need_sync = true;
+                  goto CLEANUP;
+               }
+               if (event.packet->dataLength == IWIN.size()) {
+                  need_reset = 2;
+                  goto CLEANUP;
+               }
+               if (event.packet->dataLength == ILOSE.size()) {
+                  need_reset = 1;
+                  goto CLEANUP;
+               }
                if (event.packet->dataLength != PACKET_SIZE) {
-                  std::clog << "PACKET TOO LARGE\n";
                   goto CLEANUP;
                }
                new_state = NetworkState::deserialize(reinterpret_cast<char*>(event.packet->data));
@@ -67,11 +99,16 @@ CLEANUP:
          break;
       }
    }
+   std::quick_exit(0);
 }
 
 void Peer::stop() {
    _is_terminated = true;
    _recv_thread.join();
+#ifdef DEBUG
+   _is_debug = false;
+   _debug_thread.join();
+#endif
 }
 
 std::deque<NetworkState> Peer::readStates() {
@@ -87,12 +124,46 @@ bool Peer::newData() {
    return new_states;
 }
 
+bool Peer::needSync() {
+   bool ret = need_sync;
+   need_sync = false;
+   return ret;
+}
+
+short Peer::needReset() {
+   short ret = need_reset;
+   need_reset = 0;
+   return ret;
+}
+
 Server::~Server() {
    enet_host_destroy(server);
 }
 
 void Server::sendState(NetworkState state) {
+#ifdef DEBUG
+   msg_lock.lock();
+   if (msg_queue.size() == MAX_MSG_BUFFER) {
+      msg_queue.pop_back();
+   }
+   msg_queue.push_front(DebugMsg { state, rand()%10 });
+   msg_lock.unlock();
+#endif
+#ifndef DEBUG
    ENetPacket * packet = enet_packet_create (NetworkState::serialize(state).data(), PACKET_SIZE, ENET_PACKET_FLAG_RELIABLE);
+   enet_host_broadcast (server, 1, packet);
+#endif
+}
+
+void Server::sendSync() {
+   ENetPacket * packet = enet_packet_create (SYNC.c_str(), SYNC.size(), ENET_PACKET_FLAG_RELIABLE);
+   enet_host_broadcast (server, 1, packet);
+}
+
+void Server::sendWin(CollisionState c) {
+   std::string status = c == CollisionState::WIN ? IWIN : ILOSE;
+   need_reset = c == CollisionState::WIN ? 1 : 2;
+   ENetPacket * packet = enet_packet_create (status.c_str(), status.size(), ENET_PACKET_FLAG_RELIABLE);
    enet_host_broadcast (server, 1, packet);
 }
 
@@ -125,6 +196,9 @@ bool Server::start() {
 
    try {
       _recv_thread = std::thread(&Peer::networkloop, this, server);
+#ifdef DEBUG
+      _debug_thread = std::thread(&Peer::debugloop, this, server);
+#endif
    } catch(std::exception e) {
       return false;
    }
@@ -136,10 +210,31 @@ Client::~Client() {
 }
 
 void Client::sendState(NetworkState state) {
+#ifdef DEBUG
+   msg_lock.lock();
+   if (msg_queue.size() == MAX_MSG_BUFFER) {
+      msg_queue.pop_back();
+   }
+   msg_queue.push_front(DebugMsg { state, rand()%10 });
+   msg_lock.unlock();
+#endif
+#ifndef DEBUG
    ENetPacket * packet = enet_packet_create (NetworkState::serialize(state).data(), PACKET_SIZE, ENET_PACKET_FLAG_RELIABLE);
+   enet_peer_send (server, 0, packet);
+#endif
+}
+
+void Client::sendSync() {
+   ENetPacket * packet = enet_packet_create (SYNC.c_str(), SYNC.size(), ENET_PACKET_FLAG_RELIABLE);
    enet_peer_send (server, 0, packet);
 }
 
+void Client::sendWin(CollisionState c) {
+   std::string status = c == CollisionState::WIN ? IWIN : ILOSE;
+   need_reset = c == CollisionState::WIN ? 1 : 2;
+   ENetPacket * packet = enet_packet_create (status.c_str(), status.size(), ENET_PACKET_FLAG_RELIABLE);
+   enet_peer_send (server, 0, packet);
+}
 
 bool Client::start() {
    client = enet_host_create (NULL /* create a client host */,
@@ -176,6 +271,9 @@ bool Client::start() {
 
    try {
       _recv_thread = std::thread(&Peer::networkloop, this, client);
+#ifdef DEBUG
+      _debug_thread = std::thread(&Peer::debugloop, this, client);
+#endif
    } catch(std::exception e) {
       return false;
    }

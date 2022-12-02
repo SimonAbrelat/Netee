@@ -2,23 +2,30 @@
 #include "moves.hpp"
 
 Physics::Physics() {
-    _p1_body = Collider(100,100,50,50);
-    _p2_body = Collider(530,100,50,50);
-    _p1_rapier = Collider(100,100,10,100);
-    _p2_rapier = Collider(480,100,10,100);
-
-    buffer_push(GameState{
-        0,
-        PlayerState {_p1_body.x, _p1_rapier.x, 0, Animation::NONE}, InputState{},
-        PlayerState {_p2_body.x, _p2_rapier.x, 0, Animation::NONE}, InputState{},
-        CollisionState::NONE, true
-    });
+    reset();
 };
 
 Physics::~Physics() {
     _run_physics = false;
     _physics_thread.join();
 };
+
+void Physics::reset() {
+    _player_lock.lock();
+    _p1_body = Collider(100,100,50,50);
+    _p2_body = Collider(530,100,50,50);
+    _p1_rapier = Collider(100,100,10,100);
+    _p2_rapier = Collider(480,100,10,100);
+    for (int i = 0; i < BUFFER; i++) {
+        buffer_push(GameState{
+            0,
+            PlayerState {_p1_body.x, _p1_rapier.x, 0, Animation::NONE, false, false}, InputState{},
+            PlayerState {_p2_body.x, _p2_rapier.x, 0, Animation::NONE, false, false}, InputState{},
+            CollisionState::NONE, true
+        });
+    }
+    _player_lock.unlock();
+}
 
 bool Physics::run(std::shared_ptr<Peer> net){
     _networking = net;
@@ -44,19 +51,12 @@ void Physics::update_inputs(const InputState& input) {
 PlayerState Physics::get(bool player){
     _player_lock.lock();
     // Most recent completed frame
-    GameState current = _rollback_buffer.front();
+    GameState current = _rollback_buffer.at(2);
     // Get the player, information
     PlayerState ret {(player) ? current.p1 : current.p2};
     _player_lock.unlock();
     return ret;
 };
-
-CollisionState Physics::getWin(){
-    _game_lock.lock();
-    CollisionState ret = _win;
-    _game_lock.unlock();
-    return ret;
-}
 
 void Physics::buffer_push(GameState state) {
     if (_rollback_buffer.size() == BUFFER + 1) {
@@ -70,6 +70,7 @@ void Physics::buffer_push(GameState state) {
 #define ITER_ANIM(next, base, frame, TYPE, mirror) \
         (next).anim = Animation::TYPE;                                                                  \
         (next).anim_frame = (frame);                                                                    \
+        (next).anim_active = TYPE##_ANIMATION[(frame)]. is_active;                                      \
         (next).pos = (base).pos + (((mirror) ? -1 : 1) * TYPE##_ANIMATION[(frame)].input_direction);    \
         (next).sword = (base).sword + (((mirror) ? -1 : 1) * TYPE##_ANIMATION[(frame)].sword_direction);
 
@@ -110,7 +111,7 @@ void Physics::process_input(PlayerState& next, const PlayerState& base, const In
             } else {
                 // Smooth player movement
                 next.pos = base.pos + ((mirror ? -1 : 1) * (WALK_SPEED * input.direction));
-                next.sword = base.sword + ((mirror ? -1 : 1) *(WALK_SPEED * input.direction));
+                next.sword = base.sword + ((mirror ? -1 : 1) * (WALK_SPEED * input.direction));
             }
             break;
     }
@@ -126,50 +127,60 @@ CollisionState Physics::process_collisions(PlayerState& p1, PlayerState& p2) {
 
     // Reset hitbox's activity
     if (p1.anim == Animation::NONE) {
-        _p1_rapier.is_active = true;
-    }
-    if (p1.anim == Animation::FEINT) {
         _p1_rapier.is_active = false;
+        p1.anim_active = false;
+        p1.is_clank = false;
+    } else {
+        _p1_rapier.is_active = p1.anim_active && !p1.is_clank;
     }
+
     if (p2.anim == Animation::NONE) {
-        _p2_rapier.is_active = true;
-    }
-    if (p2.anim == Animation::FEINT) {
         _p2_rapier.is_active = false;
+        p2.anim_active = false;
+        p2.is_clank = false;
+    } else {
+        _p2_rapier.is_active = p2.anim_active && !p2.is_clank;
     }
 
     // Calculates the collision
-    bool win = Collider::is_colliding(_p1_rapier, _p2_body);
-    bool loss = Collider::is_colliding(_p2_rapier, _p1_body);
+    bool win = false;
+    bool loss = false;
 
     bool clank = false;
     if (p1.anim == Animation::ATTACK || p1.anim == Animation::LUNGE) {
+        win = Collider::is_colliding(_p1_rapier, _p2_body);
         bool swords = Collider::is_colliding(_p1_rapier, _p2_rapier);
         if (swords && (p2.anim == Animation::ATTACK || p2.anim == Animation::LUNGE)) {
-            _p1_rapier.is_active = false;
-            _p2_rapier.is_active = false;
+            _p1_rapier.is_active = _p2_rapier.is_active = false;
+            p1.is_clank = p2.is_clank = true;
         }
         if (swords && (p2.anim == Animation::PARRY)) {
             _p1_rapier.is_active = false;
+            p1.is_clank = true;
             p2.anim = Animation::NONE;
             p2.anim_frame = 0;
         }
     }
     if (p2.anim == Animation::ATTACK || p2.anim == Animation::LUNGE) {
+        loss = Collider::is_colliding(_p2_rapier, _p1_body);
         bool swords = Collider::is_colliding(_p1_rapier, _p2_rapier);
         if (swords && (p1.anim == Animation::ATTACK || p1.anim == Animation::LUNGE)) {
-            _p1_rapier.is_active = false;
-            _p2_rapier.is_active = false;
+            _p1_rapier.is_active = _p2_rapier.is_active = false;
+            p1.is_clank = p2.is_clank = true;
         }
         if (swords && (p1.anim == Animation::PARRY)) {
             _p2_rapier.is_active = false;
-            p2.anim = Animation::NONE;
-            p2.anim_frame = 0;
+            p2.is_clank = true;
+            p1.anim = Animation::NONE;
+            p1.anim_frame = 0;
         }
     }
 
     // Returns state
-    if (win) {
+    if (win && loss) {
+       p1.is_clank = true;
+       p2.is_clank = true;
+    } else if (win) {
         return CollisionState::WIN;
     } else if (loss) {
         return CollisionState::LOSS;
@@ -186,11 +197,36 @@ void Physics::update() {
 
     // Check if two active hitboxes are touching
     bool clank = false;
+#ifdef LOG
+    auto prev_cycle =  std::chrono::steady_clock::now();
+#endif
 
     while (_run_physics) {
-        // Setup physics loop
+        auto next_cycle = std::chrono::steady_clock::now() + 16ms; // 60 fps
+        //auto next_cycle = std::chrono::steady_clock::now() + 32ms; // 30 fps
+        //auto next_cycle = std::chrono::steady_clock::now() + 100ms; // 10 fps
+        if (_networking->needSync()) {
+            std::clog << "SYNCING\n";
+            std::this_thread::sleep_until(next_cycle);
+            continue;
+        }
+        short reset_result = _networking->needReset();
+        if (reset_result) {
+            std::clog << ((reset_result == 1) ? "YOU WIN\n" : "YOU LOSE\n");
+            reset();
+            std::this_thread::sleep_until(next_cycle);
+            continue;
+        }
+
+        // Increment frame
         frame_counter++;
-        const auto next_cycle = std::chrono::steady_clock::now() + 16ms;
+
+#ifdef LOG
+        std::clog <<
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - prev_cycle).count()
+            << "\n";
+        prev_cycle = std::chrono::steady_clock::now();
+#endif
 
         // Get new local inputs
         _input_lock.lock();
@@ -206,7 +242,7 @@ void Physics::update() {
             newest_input = opp_inputs.front();
             // Iterates through everything in the buffer returned from the network
             for (auto it = opp_inputs.cbegin(); it != opp_inputs.cend(); ++it) {
-                if (it->frame < oldest_frame && oldest_frame != 0) {
+                if (it->frame < oldest_frame && oldest_frame > 0) {
                     oldest_frame = it->frame;
                 }
                 if (it->frame > newest_input.frame) {
@@ -214,7 +250,6 @@ void Physics::update() {
                 }
             }
         }
-
         _player_lock.lock();
         // Calculate Rollbacks
         if (new_input) {
@@ -222,7 +257,7 @@ void Physics::update() {
             uint i = frame_counter - oldest_frame;
             if (i >= _rollback_buffer.size()) {
                 std::cout << "ERROR: BUFFER NOT LONG ENOUGH: " << oldest_frame << "\n";
-                break;
+                _networking->sendSync();
             } else {
                 if (oldest_frame != frame_counter) {
                     // Rollback code
@@ -260,12 +295,23 @@ void Physics::update() {
         CollisionState collision = process_collisions(player1, player2);
 
         // Logs the state of the physics and rollback buffer
-        std::clog << "P1: "  << (int)player1.pos << ", P2: " << (int)player2.pos << '\n';
-        std::clog << "Rollback state: ";
+        //std::clog << "P1: "  << (int)player1.pos << ", P2: " << (int)player2.pos << '\n';
+#ifdef LOG
+        std::clog << "Frame " << frame_counter << " Rollback state: ";
         for (auto it = _rollback_buffer.cbegin(); it != _rollback_buffer.cend(); ++it) {
             std::clog << it->opponent_input << " ";
         }
         std::clog << "\n";
+#endif
+        /*
+        std::clog << "Frame " << frame_counter << " missing: ";
+        for (auto it = _rollback_buffer.cbegin(); it != _rollback_buffer.cend(); ++it) {
+            if (!it->opponent_input) {
+                std::clog << it->frame << " ";
+            }
+        }
+        std::clog << "\n";
+        */
 
         // Push the current state into the rollback buffer
         buffer_push(GameState{
@@ -287,10 +333,8 @@ void Physics::update() {
             if (has_consensus) {
                 if (rol->col == CollisionState::WIN
                  || rol->col == CollisionState::LOSS) {
-                    _run_physics = false;
-                    _game_lock.lock();
-                    _win = rol->col;
-                    _game_lock.unlock();
+                    _networking->sendWin(rol->col);
+                    break;
                 }
             }
         }
@@ -298,5 +342,5 @@ void Physics::update() {
         // Waits so the loop happens in 1/60th of a second
         std::this_thread::sleep_until(next_cycle);
     }
-    std::terminate();
+    std::quick_exit(0);
 }
