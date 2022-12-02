@@ -54,8 +54,10 @@ const Move PARRY_ANIMATION[] {
     // rapier +15
     {0, 10}, {0, 3}, {0, 2},
 
-    // ACTIVE: 10 frames
-    {0, 0, true}, {0, 0, true}, {0, 0, true}, {0, 0, true}, {0, 0, true}, {0, 0, true}, {0, 0, true}, {0, 0, true}, {0, 0, true}, {0, 0, true},
+    // ACTIVE: 15 frames
+    {0, 0, true}, {0, 0, true}, {0, 0, true}, {0, 0, true}, {0, 0, true},
+    {0, 0, true}, {0, 0, true}, {0, 0, true}, {0, 0, true}, {0, 0, true},
+    {0, 0, true}, {0, 0, true}, {0, 0, true}, {0, 0, true}, {0, 0, true},
 
     // RECOVERY: 6 frames
     // rapier -15

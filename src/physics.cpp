@@ -145,11 +145,12 @@ CollisionState Physics::process_collisions(PlayerState& p1, PlayerState& p2) {
     }
 
     // Calculates the collision
-    bool win = Collider::is_colliding(_p1_rapier, _p2_body);
-    bool loss = Collider::is_colliding(_p2_rapier, _p1_body);
+    bool win = false;
+    bool loss = false;
 
     bool clank = false;
     if (p1.anim == Animation::ATTACK || p1.anim == Animation::LUNGE) {
+        win = Collider::is_colliding(_p1_rapier, _p2_body);
         bool swords = Collider::is_colliding(_p1_rapier, _p2_rapier);
         if (swords && (p2.anim == Animation::ATTACK || p2.anim == Animation::LUNGE)) {
             _p1_rapier.is_active = _p2_rapier.is_active = false;
@@ -163,6 +164,7 @@ CollisionState Physics::process_collisions(PlayerState& p1, PlayerState& p2) {
         }
     }
     if (p2.anim == Animation::ATTACK || p2.anim == Animation::LUNGE) {
+        loss = Collider::is_colliding(_p2_rapier, _p1_body);
         bool swords = Collider::is_colliding(_p1_rapier, _p2_rapier);
         if (swords && (p1.anim == Animation::ATTACK || p1.anim == Animation::LUNGE)) {
             _p1_rapier.is_active = _p2_rapier.is_active = false;
