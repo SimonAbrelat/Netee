@@ -111,16 +111,18 @@ void Graphics::draw(std::shared_ptr<Physics> phys) {
     p2_rapier_rect.w = 100;
     p2_rapier_rect.h = 10;
 
-    //if (p2.anim == Animation::LUNGE || p2.anim == Animation::FEINT) {
-    if (p2.anim_active && !p2.is_clank) {
+    if (p2.anim == Animation::PARRY) {
+        SDL_SetRenderDrawColor(_ren, 60, 179, 113, 255);
+    } else if (p2.anim_active && !p2.is_clank) {
         SDL_SetRenderDrawColor(_ren, 255, 165, 0, 255);
     } else {
         SDL_SetRenderDrawColor(_ren, 0, 125, 255, 255);
     }
     SDL_RenderFillRect(_ren, &p2_rapier_rect);
 
-    //if (p1.anim == Animation::LUNGE || p1.anim == Animation::FEINT) {
-    if (p1.anim_active && !p1.is_clank) {
+    if (p1.anim == Animation::PARRY) {
+        SDL_SetRenderDrawColor(_ren, 60, 179, 113, 255);
+    } else if (p1.anim_active && !p1.is_clank) {
         SDL_SetRenderDrawColor(_ren, 255, 165, 0, 255);
     } else {
         SDL_SetRenderDrawColor(_ren, 244, 35, 87, 255);
